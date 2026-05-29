@@ -1,0 +1,14 @@
+TODO: record the asciinema cast.
+
+Headless recording is not available in the build environment. To produce this
+file locally, run:
+
+  npm run build
+  asciinema rec assets/demo.cast -c "node dist/cli.js scan test/fixtures"
+
+Or render a GIF instead with VHS (see assets/demo.tape):
+
+  vhs assets/demo.tape
+
+The README references this slot; once recorded, upload to asciinema.org and
+replace the PLACEHOLDER id in the README's asciicast badge.

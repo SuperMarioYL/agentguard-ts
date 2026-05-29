@@ -1,0 +1,47 @@
+{
+  "name": "agentguard",
+  "version": "0.1.0",
+  "description": "Scan your dependency tree for hidden instructions aimed at your coding agent before it runs them.",
+  "type": "module",
+  "bin": {
+    "agentguard": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "rules",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "prompt-injection",
+    "coding-agent",
+    "cursor",
+    "supply-chain",
+    "security",
+    "scanner",
+    "mcp"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@babel/parser": "^7.24.0",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.3.0",
+    "picocolors": "^1.0.0",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

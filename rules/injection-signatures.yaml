@@ -1,0 +1,131 @@
+# AgentGuard signature corpus
+# ----------------------------
+# The product's moat is this file, not the matcher. Each rule is a set of
+# imperative `verbs` aimed at an assistant. The `applyRules` matcher pairs a verb
+# hit with the global `addressees` heuristic below: a verb addressed to an agent
+# fires at the rule's full severity; the same verb with no agent addressee is
+# downgraded one level, so benign developer prose ("delete node_modules and
+# retry") doesn't drown the real payloads.
+#
+# Patterns are JavaScript regular expressions, matched case-insensitively.
+# Keep \b word boundaries on bare verbs so fragments ("deleterious") don't match.
+
+version: 1
+
+# Addressee heuristic — does the prose talk *to* an AI agent rather than a human?
+# A verb hit that also matches one of these escalates to the rule's full severity.
+addressees:
+  - "\\bAI\\b"
+  - "\\bA\\.I\\.\\b"
+  - "\\bassistant\\b"
+  - "\\bagent(s)?\\b"
+  - "coding agent"
+  - "\\bLLM\\b"
+  - "language model"
+  - "\\bcursor\\b"
+  - "\\bcopilot\\b"
+  - "\\bclaude\\b"
+  - "\\bchatgpt\\b"
+  - "\\bcodex\\b"
+  - "\\bgpt-?[0-9]"
+  - "\\byou are (a|an|now)\\b"
+  - "as an? (ai|assistant|agent)"
+  - "ignore (all )?(the )?(previous|prior|above)"
+  - "disregard (all )?(the )?(previous|prior|above)"
+  - "system prompt"
+  - "note (to|for) the (ai|assistant|agent|model|llm)"
+  - "instructions? (to|for) (the )?(ai|assistant|agent|model)"
+
+rules:
+  - id: destructive.delete
+    severity: HIGH
+    description: instruction to destroy files or data
+    verbs:
+      - "\\bdelete\\b"
+      - "\\bremove (all|the|every)"
+      - "\\bwipe\\b"
+      - "\\berase\\b"
+      - "\\btruncate\\b"
+      - "\\bdrop\\s+(table|database)\\b"
+      - "rm\\s+-rf"
+      - "rm\\s+-fr"
+      - "\\bformat\\s+(the\\s+)?(disk|drive|volume)"
+      - "delete the contents"
+      - "purge (all|the)"
+
+  - id: exfil.network
+    severity: HIGH
+    description: instruction to send local data off-machine
+    verbs:
+      - "\\bexfiltrate\\b"
+      - "\\bcurl\\b\\s+\\S*https?://"
+      - "\\bwget\\b\\s+\\S*https?://"
+      - "send (the )?(contents|files|data|output|repository)"
+      - "upload (the )?(contents|files|data|repository|repo|project)"
+      - "post (the )?(contents|data|file).{0,30}https?://"
+      - "fetch\\s+https?://"
+      - "transmit (the )?(contents|data)"
+
+  - id: phish.credential
+    severity: HIGH
+    description: instruction to read or harvest secrets and credentials
+    verbs:
+      - "\\.env\\b"
+      - "\\bcredentials?\\b"
+      - "\\bpassword(s)?\\b"
+      - "\\bsecret(s)?\\b"
+      - "\\bapi[_\\- ]?key(s)?\\b"
+      - "\\baccess[_\\- ]?token(s)?\\b"
+      - "ssh (private )?key"
+      - "private key"
+      - "aws[_\\- ]?(secret|access)"
+      - "\\.aws/credentials"
+      - "id_rsa"
+
+  - id: injection.override
+    severity: HIGH
+    description: prompt-injection override of the agent's instructions
+    # These verbs are themselves agent-directed; the global addressee list also
+    # contains the same phrases so they reliably fire at HIGH.
+    verbs:
+      - "ignore (all )?(the )?(previous|prior|above) instructions"
+      - "disregard (all )?(the )?(previous|prior|above)"
+      - "forget (everything|all) (you|previous)"
+      - "you are now (a|an|in)"
+      - "new (system )?instructions:"
+      - "override (the )?(system|previous) (prompt|instructions)"
+
+  - id: privilege.escalate
+    severity: MED
+    description: instruction to escalate privileges or relax permissions
+    verbs:
+      - "\\bsudo\\b"
+      - "chmod\\s+777"
+      - "chmod\\s+-R\\s+777"
+      - "run as root"
+      - "run with (admin|root|elevated)"
+      - "disable (the )?(firewall|sandbox|security)"
+
+  - id: persistence.backdoor
+    severity: MED
+    description: instruction to install persistence or a backdoor
+    verbs:
+      - "add (an? )?ssh key"
+      - "append.{0,20}authorized_keys"
+      - "\\bcrontab\\b"
+      - "modify (the )?(\\.bashrc|\\.zshrc|\\.profile)"
+      - "install (a )?backdoor"
+      - "add (a )?(new )?(admin|root) user"
+      - "reverse shell"
+
+  - id: obfuscation.hidden
+    severity: MED
+    description: instruction to act covertly or hide actions from the user
+    verbs:
+      - "do not (tell|inform|notify|alert) the (user|developer|human)"
+      - "don'?t (tell|inform|mention|notify) the (user|developer|human)"
+      - "without (telling|informing|notifying) the (user|developer|human)"
+      - "\\bsilently\\b"
+      - "do not mention this"
+      - "keep this (secret|hidden|between us)"
+      - "delete this (comment|file|note) after"
