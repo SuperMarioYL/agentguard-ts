@@ -161,7 +161,7 @@ pre-commit 钩子。用 `--ci` 获得简洁、无 ANSI 色彩的输出，用 `--
 npx agentguard badge
 ```
 
-[![AgentGuard: clean](https://img.shields.io/badge/AgentGuard-clean-2ea043?style=flat&logo=shieldsdotio&logoColor=white)](https://github.com/agentguard/agentguard)
+[![AgentGuard: clean](https://img.shields.io/badge/AgentGuard-clean-2ea043?style=flat&logo=shieldsdotio&logoColor=white)](https://github.com/SuperMarioYL/agentguard-ts)
 
 ## 付费方案
 
@@ -200,4 +200,4 @@ Stripe 结账。
 ---
 
 <sub>由 ai-radar 扫描 <code>scan-2026-05-30-0206</code> 生成 ·
-<a href="https://github.com/agentguard/agentguard">AgentGuard</a></sub>
+<a href="https://github.com/SuperMarioYL/agentguard-ts">AgentGuard</a></sub>

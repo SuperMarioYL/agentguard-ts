@@ -172,7 +172,7 @@ seeds the org-wide registry the paid tier monetizes.
 npx agentguard badge
 ```
 
-[![AgentGuard: clean](https://img.shields.io/badge/AgentGuard-clean-2ea043?style=flat&logo=shieldsdotio&logoColor=white)](https://github.com/agentguard/agentguard)
+[![AgentGuard: clean](https://img.shields.io/badge/AgentGuard-clean-2ea043?style=flat&logo=shieldsdotio&logoColor=white)](https://github.com/SuperMarioYL/agentguard-ts)
 
 ## Pricing
 
@@ -214,7 +214,7 @@ are equally welcome.
 
 <sub>Generated from ai-radar scan
 <code>scan-2026-05-30-0206</code> ·
-<a href="https://github.com/agentguard/agentguard">AgentGuard</a></sub>
+<a href="https://github.com/SuperMarioYL/agentguard-ts">AgentGuard</a></sub>
 
 ## Share this
 
