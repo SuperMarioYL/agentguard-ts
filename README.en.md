@@ -30,10 +30,30 @@ hand **Cursor**-class agents broad, side-effecting permissions by default.
 AgentGuard scans exactly that surface — your deps and project files — and reports
 the hostile prose *before* the agent executes it.
 
+## <img src="https://api.iconify.design/tabler:topology-star-3.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Architecture
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
+    <img src="./assets/atlas-light.svg" width="880" alt="Architecture: cli.ts drives scanner.ts, which walks the project and node_modules, extracts prose into typed text units, classifies them against injection-signatures.yaml via rules, and reports agent-targeted findings with a non-zero exit on HIGH">
+  </picture>
+</p>
+
+The whole pipeline is a single local Node process — no network, no daemon.
+`cli.ts` hands the command to `scanner.ts`, which orchestrates the run: `walk.ts`
+enumerates files across the project and `node_modules`, `extract.ts` normalizes
+comments / Markdown / YAML / MCP tool descriptions into typed text units, and
+`rules.ts` classifies each unit against `rules/injection-signatures.yaml` using
+an imperative-verb × addressee cross-product. `report.ts` groups the findings
+HIGH → MED → LOW and exits non-zero on any HIGH, so the scan drops straight into CI.
+
 ## Table of contents
 
 - [Why now](#why-now)
+- [Architecture](#architecture)
 - [Quickstart](#quickstart)
+- [Demo](#demo)
 - [The core idea: the AgentThreat finding](#the-core-idea-the-agentthreat-finding)
 - [How it works](#how-it-works)
 - [vs traditional SAST](#vs-traditional-sast)
@@ -56,10 +76,6 @@ npx agentguard scan . --no-deps  # project only, skip dependencies
 npx agentguard badge             # print the "AgentGuard: clean" badge
 ```
 
-> 📼 Demo coming soon (see [assets/demo.cast](./assets/demo.cast) — record it with `vhs assets/demo.tape`).
-
-[![asciicast](https://asciinema.org/a/PLACEHOLDER.svg)](https://asciinema.org/a/PLACEHOLDER)
-
 <details>
 <summary>sample output (scanning the bundled jqwik payload)</summary>
 
@@ -81,6 +97,13 @@ AgentGuard — 1 files, 9 prose units scanned
 ```
 
 </details>
+
+## <img src="https://api.iconify.design/tabler:photo.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Demo
+
+One command catches the real jqwik injection payload (3 HIGH findings), then
+prints the paste-ready clean badge:
+
+![AgentGuard demo](assets/demo.gif)
 
 ## The core idea: the AgentThreat finding
 
@@ -212,8 +235,7 @@ are equally welcome.
 
 ---
 
-<sub>Generated from ai-radar scan
-<code>scan-2026-05-30-0206</code> ·
+<sub>MIT © 2026 SuperMarioYL ·
 <a href="https://github.com/SuperMarioYL/agentguard-ts">AgentGuard</a></sub>
 
 ## Share this

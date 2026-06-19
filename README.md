@@ -24,10 +24,29 @@ agent。问题在于：你有几百个传递依赖，没人会去通读 `node_mo
 这类 agent 默认就握有可造成副作用的宽泛权限。AgentGuard 扫描的正是这片攻击面 ——
 你的依赖与项目文件 —— 在 agent 执行之前，把这些恶意 prose 报告出来。
 
+## <img src="https://api.iconify.design/tabler:topology-star-3.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 架构
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
+    <img src="./assets/atlas-light.svg" width="880" alt="架构：cli.ts 驱动 scanner.ts，后者 walk 项目与 node_modules、extract 出带类型的文本单元、对照 injection-signatures.yaml 用 rules 分类，最后由 report 输出瞄准 agent 的 finding，命中 HIGH 时非零退出">
+  </picture>
+</p>
+
+整条链路是单个本地 Node 进程，无网络、无守护进程：`cli.ts` 把命令交给
+`scanner.ts` 编排 —— `walk.ts` 枚举项目与 `node_modules` 的文件，`extract.ts`
+把注释 / Markdown / YAML / MCP 工具描述归一化为带类型的文本单元，`rules.ts`
+用「祈使动词 × 收件人」的叉积对照 `rules/injection-signatures.yaml` 逐单元分类。
+`report.ts` 把结果按 HIGH → MED → LOW 分组输出，只要存在 HIGH finding 就以非零码
+退出，从而直接落进 CI。
+
 ## 目录
 
 - [为什么是现在](#为什么是现在)
+- [架构](#架构)
 - [快速开始](#快速开始)
+- [演示](#演示)
 - [核心概念：AgentThreat finding](#核心概念agentthreat-finding)
 - [工作原理](#工作原理)
 - [对比传统 SAST](#对比传统-sast)
@@ -48,10 +67,6 @@ npx agentguard scan .            # 扫描项目 + node_modules
 npx agentguard scan . --no-deps  # 只扫项目，跳过依赖
 npx agentguard badge             # 打印「AgentGuard: clean」徽章
 ```
-
-> 📼 演示录制中（见 [assets/demo.cast](./assets/demo.cast)，用 `vhs assets/demo.tape` 录制）。
-
-[![asciicast](https://asciinema.org/a/PLACEHOLDER.svg)](https://asciinema.org/a/PLACEHOLDER)
 
 <details>
 <summary>示例输出（扫描内置的 jqwik payload）</summary>
@@ -74,6 +89,12 @@ AgentGuard — 1 files, 9 prose units scanned
 ```
 
 </details>
+
+## <img src="https://api.iconify.design/tabler:photo.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 演示
+
+一条命令扫出真实的 jqwik 注入 payload（3 个 HIGH），再打印可粘贴的 clean 徽章：
+
+![AgentGuard demo](assets/demo.gif)
 
 ## 核心概念：AgentThreat finding
 
@@ -199,5 +220,5 @@ Stripe 结账。
 
 ---
 
-<sub>由 ai-radar 扫描 <code>scan-2026-05-30-0206</code> 生成 ·
+<sub>MIT © 2026 SuperMarioYL ·
 <a href="https://github.com/SuperMarioYL/agentguard-ts">AgentGuard</a></sub>

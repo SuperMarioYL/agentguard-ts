@@ -23,7 +23,7 @@ CLAUDE.md
 .dispatch_stage.sh
 .spawn.*
 
-# build scratch (ai-radar pipeline internals — never commit)
+# build scratch — never commit
 BUILD_SETUP_NEXT_STEPS.md
 .spawn.*
 .builder_*

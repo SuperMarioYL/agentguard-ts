@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360"
+     font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+     role="img" aria-label="AgentGuard architecture: the CLI drives the scanner, which walks the project and node_modules, extracts prose into typed text units, classifies them against the injection signature corpus, and reports agent-targeted findings with a non-zero exit on HIGH">
+  <defs>
+    <marker id="ah-d" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5A5A66"/></marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="360" fill="#1D1D1F"/>
+
+  <!-- scope frame: everything runs in one local, offline Node process -->
+  <rect x="24" y="28" width="832" height="308" rx="18" fill="none" stroke="#F87171" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="44" y="50" font-size="13" font-weight="600" fill="#F4A7A7">Single Node process — local, offline, no API key</text>
+
+  <!-- connectors -->
+  <g stroke="#3A3A44" stroke-width="1.6" fill="none">
+    <!-- CLI -> scanner -->
+    <line x1="196" y1="196" x2="252" y2="196" marker-end="url(#ah-d)"/>
+    <!-- scanner pipeline chain: walk -> extract -> rules -->
+    <line x1="436" y1="148" x2="436" y2="178" marker-end="url(#ah-d)"/>
+    <line x1="436" y1="232" x2="436" y2="262" marker-end="url(#ah-d)"/>
+    <!-- rules -> report -->
+    <line x1="588" y1="196" x2="644" y2="196" marker-end="url(#ah-d)"/>
+    <!-- corpus -> rules -->
+    <line x1="436" y1="324" x2="436" y2="304" marker-end="url(#ah-d)" stroke="#F59E0B" stroke-opacity="0.75"/>
+  </g>
+
+  <!-- CLI -->
+  <g>
+    <rect x="40" y="156" width="156" height="80" rx="15" fill="#4DA3FF" fill-opacity="0.16" stroke="#4DA3FF" stroke-width="1.5"/>
+    <text x="118" y="190" text-anchor="middle" font-size="15" font-weight="600" fill="#9CCBFF">cli.ts</text>
+    <text x="118" y="210" text-anchor="middle" font-size="10.5" fill="#A1A1A8">scan · badge · --json · --ci</text>
+  </g>
+
+  <!-- Scanner (orchestrator) wrapping the pipeline -->
+  <g>
+    <rect x="252" y="68" width="368" height="256" rx="16" fill="#F87171" fill-opacity="0.10" stroke="#F87171" stroke-width="1.6"/>
+    <text x="436" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#F4A7A7">scanner.ts — orchestrates the scan</text>
+
+    <!-- walk -->
+    <rect x="296" y="108" width="280" height="40" rx="10" fill="#4DA3FF" fill-opacity="0.16" stroke="#4DA3FF" stroke-width="1.3"/>
+    <text x="312" y="126" font-size="12.5" font-weight="600" fill="#9CCBFF">walk.ts</text>
+    <text x="312" y="141" font-size="10.5" fill="#A1A1A8">enumerate project + node_modules (fast-glob)</text>
+
+    <!-- extract -->
+    <rect x="296" y="178" width="280" height="54" rx="10" fill="#8985FF" fill-opacity="0.16" stroke="#8985FF" stroke-width="1.3"/>
+    <text x="312" y="197" font-size="12.5" font-weight="600" fill="#B6B3FF">extract.ts → TextUnit[]</text>
+    <text x="312" y="213" font-size="10.5" fill="#A1A1A8">comments (@babel/parser) · Markdown · YAML</text>
+    <text x="312" y="226" font-size="10.5" fill="#A1A1A8">MCP tool descriptions · fixtures</text>
+
+    <!-- rules -->
+    <rect x="296" y="262" width="280" height="42" rx="10" fill="#F87171" fill-opacity="0.16" stroke="#F87171" stroke-width="1.3"/>
+    <text x="312" y="281" font-size="12.5" font-weight="600" fill="#F4A7A7">rules.ts — verb × addressee</text>
+    <text x="312" y="296" font-size="10.5" fill="#A1A1A8">imperative verb × "talking to an agent?"</text>
+  </g>
+
+  <!-- Signature corpus (data input) -->
+  <g>
+    <rect x="290" y="324" width="292" height="30" rx="9" fill="#F59E0B" fill-opacity="0.16" stroke="#F59E0B" stroke-width="1.3"/>
+    <text x="436" y="343" text-anchor="middle" font-size="11" font-weight="600" fill="#F6C66B">rules/injection-signatures.yaml — signature corpus</text>
+  </g>
+
+  <!-- Report / Findings -->
+  <g>
+    <rect x="644" y="116" width="196" height="160" rx="15" fill="#2DC79A" fill-opacity="0.10" stroke="#2DC79A" stroke-width="1.5"/>
+    <text x="742" y="140" text-anchor="middle" font-size="15" font-weight="600" fill="#5BE0BC">report.ts</text>
+    <g font-size="11">
+      <rect x="662" y="152" width="160" height="34" rx="9" fill="#F87171" fill-opacity="0.16" stroke="#F87171" stroke-width="1.1"/>
+      <text x="676" y="173" font-weight="600" fill="#F4A7A7">HIGH — agent-targeted</text>
+      <rect x="662" y="192" width="160" height="30" rx="9" fill="#F59E0B" fill-opacity="0.16" stroke="#F59E0B" stroke-width="1.1"/>
+      <text x="676" y="212" font-weight="600" fill="#F6C66B">MED / LOW — downgraded</text>
+      <rect x="662" y="228" width="160" height="34" rx="9" fill="#2DC79A" fill-opacity="0.18" stroke="#2DC79A" stroke-width="1.1"/>
+      <text x="676" y="249" font-weight="600" fill="#5BE0BC">exit ≠ 0 on HIGH → CI</text>
+    </g>
+  </g>
+</svg>
