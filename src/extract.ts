@@ -13,10 +13,16 @@
  * never decides whether a unit is hostile.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parse as babelParse } from "@babel/parser";
-import { parseDocument, LineCounter, visit, isPair, isScalar } from "yaml";
+import {
+  parseAllDocuments,
+  LineCounter,
+  visit,
+  isPair,
+  isScalar,
+} from "yaml";
 import type { TextUnit, SourceKind } from "./scanner.js";
 
 /** Skip files larger than this — payloads are prose, not megabyte blobs. */
@@ -41,13 +47,25 @@ export async function extract(files: string[]): Promise<TextUnit[]> {
   const units: TextUnit[] = [];
 
   for (const file of files) {
+    // Guard on the real byte size BEFORE reading: string.length counts UTF-16
+    // code units, so a multibyte (e.g. CJK) file can sit under a char-count
+    // limit while being multiple MB on disk. stat() lets us skip oversized files
+    // without ever pulling them into memory.
+    let byteSize: number;
+    try {
+      byteSize = (await stat(file)).size;
+    } catch {
+      continue;
+    }
+    if (byteSize === 0 || byteSize > MAX_FILE_BYTES) continue;
+
     let content: string;
     try {
       content = await readFile(file, "utf8");
     } catch {
       continue;
     }
-    if (content.length === 0 || content.length > MAX_FILE_BYTES) continue;
+    if (content.length === 0) continue;
 
     try {
       // A file living under a fixtures dir is treated as raw payload data
@@ -245,28 +263,37 @@ function extractStructured(
   const lineCounter = new LineCounter();
   // The yaml parser handles JSON too (JSON is a YAML subset), which gives us
   // line positions for JSON manifests that JSON.parse can't provide.
-  const doc = parseDocument(content, { lineCounter });
-  if (doc.contents == null) return;
+  //
+  // Use parseAllDocuments (not parseDocument): a single `.yaml` can hold several
+  // documents separated by `---` (k8s manifests, CI configs, multi-tool MCP/agent
+  // config bundles). parseDocument returns only the FIRST, so an injection
+  // payload in the 2nd+ document would be silently dropped. We scan every
+  // document, skipping empty ones.
+  const docs = parseAllDocuments(content, { lineCounter });
 
-  visit(doc, {
-    Scalar(key, node, ancestors) {
-      // Skip mapping keys themselves; keep mapping values and sequence items.
-      if (key === "key") return;
-      if (typeof node.value !== "string") return;
+  for (const doc of docs) {
+    if (doc.contents == null) continue;
 
-      const text = normalize(node.value);
-      if (text.length < 4) return;
+    visit(doc, {
+      Scalar(key, node, ancestors) {
+        // Skip mapping keys themselves; keep mapping values and sequence items.
+        if (key === "key") return;
+        if (typeof node.value !== "string") return;
 
-      const range = node.range;
-      const line = range ? lineCounter.linePos(range[0]).line : 1;
+        const text = normalize(node.value);
+        if (text.length < 4) return;
 
-      const source_kind: SourceKind = isDescriptionValue(ancestors)
-        ? "mcp_tool_desc"
-        : "yaml";
+        const range = node.range;
+        const line = range ? lineCounter.linePos(range[0]).line : 1;
 
-      units.push({ file, line, source_kind, text });
-    },
-  });
+        const source_kind: SourceKind = isDescriptionValue(ancestors)
+          ? "mcp_tool_desc"
+          : "yaml";
+
+        units.push({ file, line, source_kind, text });
+      },
+    });
+  }
 }
 
 /** True when the scalar is the value of a `description:` pair (MCP tool prose). */

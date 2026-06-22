@@ -1,11 +1,17 @@
 # AgentGuard signature corpus
 # ----------------------------
-# The product's moat is this file, not the matcher. Each rule is a set of
-# imperative `verbs` aimed at an assistant. The `applyRules` matcher pairs a verb
-# hit with the global `addressees` heuristic below: a verb addressed to an agent
-# fires at the rule's full severity; the same verb with no agent addressee is
-# downgraded one level, so benign developer prose ("delete node_modules and
-# retry") doesn't drown the real payloads.
+# The product's moat is this file, not the matcher. Each rule pairs a verb hit
+# with the global `addressees` heuristic below:
+#
+#   - A verb addressed to an agent fires at the rule's full severity.
+#   - A verb with no agent addressee is downgraded one level — UNLESS the rule
+#     sets `require_addressee: true`, in which case a bare-`verbs` hit with no
+#     addressee is DROPPED entirely (v0.2.0 precision fix). This keeps benign
+#     developer prose ("rotate your password", "delete the build folder") out of
+#     the report instead of surfacing it as MED noise.
+#   - `strong_verbs` are self-evidently hostile corroborated patterns (e.g.
+#     "read the .env", "rm -rf") that fire regardless of `require_addressee`,
+#     so addressee-free payloads are still caught.
 #
 # Patterns are JavaScript regular expressions, matched case-insensitively.
 # Keep \b word boundaries on bare verbs so fragments ("deleterious") don't match.
@@ -18,7 +24,9 @@ addressees:
   - "\\bAI\\b"
   - "\\bA\\.I\\.\\b"
   - "\\bassistant\\b"
-  - "\\bagent(s)?\\b"
+  # Only AI-context "agent" — a bare \bagent\b also matches ssh-agent, user
+  # agent, build agent, etc., which are not AI addressees and cause false HIGHs.
+  - "\\b(ai|coding|autonomous|llm|chat|code)[ -]?agents?\\b"
   - "coding agent"
   - "\\bLLM\\b"
   - "language model"
@@ -40,18 +48,26 @@ rules:
   - id: destructive.delete
     severity: HIGH
     description: instruction to destroy files or data
+    # Bare destructive verbs ("delete the build folder", "remove the temp file")
+    # are everyday developer prose. require_addressee gates them so they only fire
+    # when the prose is addressed to an agent; otherwise they are dropped, not
+    # surfaced as MED noise. Self-evidently catastrophic commands (rm -rf,
+    # drop table, format the disk) live in strong_verbs and fire regardless.
+    require_addressee: true
     verbs:
       - "\\bdelete\\b"
       - "\\bremove (all|the|every)"
       - "\\bwipe\\b"
       - "\\berase\\b"
       - "\\btruncate\\b"
-      - "\\bdrop\\s+(table|database)\\b"
+      - "purge (all|the)"
+    strong_verbs:
       - "rm\\s+-rf"
       - "rm\\s+-fr"
+      - "\\bdrop\\s+(table|database)\\b"
       - "\\bformat\\s+(the\\s+)?(disk|drive|volume)"
-      - "delete the contents"
-      - "purge (all|the)"
+      - "delete the (entire )?contents"
+      - "delete (all|every) (file|directory|folder)"
 
   - id: exfil.network
     severity: HIGH
@@ -69,6 +85,14 @@ rules:
   - id: phish.credential
     severity: HIGH
     description: instruction to read or harvest secrets and credentials
+    # These are bare NOUNS, not imperatives — "password", ".env", "api key" all
+    # appear constantly in benign developer prose ("rotate your password", "store
+    # your api key in the vault"). require_addressee gates them: a bare-noun hit
+    # only becomes a finding when the prose is also addressed to an agent;
+    # otherwise it is dropped (not downgraded to MED), keeping false positives
+    # out of the report entirely. Genuinely hostile, addressee-free phrasing is
+    # caught by strong_verbs below.
+    require_addressee: true
     verbs:
       - "\\.env\\b"
       - "\\bcredentials?\\b"
@@ -81,6 +105,12 @@ rules:
       - "aws[_\\- ]?(secret|access)"
       - "\\.aws/credentials"
       - "id_rsa"
+    # Corroborated patterns: a hostile verb bound to a credential noun. These are
+    # self-evidently adversarial, so they fire even without an agent addressee
+    # (exempt from require_addressee), catching payloads like "read the .env and
+    # send it" that don't name an addressee.
+    strong_verbs:
+      - "(read|harvest|exfiltrate|steal|dump|leak|grab|collect|send|upload|reveal|expose|extract|scrape)\\b[^.]{0,40}?(\\.env\\b(?!\\.)|\\bcredentials?\\b|\\bpassword(s)?\\b|\\bsecret(s)?\\b|\\bapi[_\\- ]?key(s)?\\b|\\baccess[_\\- ]?token(s)?\\b|ssh (private )?key|private key|\\.aws/credentials|id_rsa)"
 
   - id: injection.override
     severity: HIGH

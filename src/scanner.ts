@@ -57,8 +57,22 @@ export interface Rule {
   severity: Severity;
   /** Imperative verbs aimed at an assistant (delete / curl / exfiltrate / ...). */
   verbs: string[];
+  /**
+   * Corroborated patterns (hostile verb + noun, e.g. "read the .env") that are
+   * self-evidently adversarial and therefore fire without needing an explicit
+   * agent addressee. Unlike bare-noun `verbs`, these are NOT suppressed even when
+   * the rule sets `requireAddressee`.
+   */
+  strongVerbs?: string[];
   /** Addressee heuristic: phrases that talk *to* the agent ("AI", "assistant"). */
   addressees?: string[];
+  /**
+   * When true, bare-noun `verbs` must be accompanied by an agent addressee to
+   * produce a finding at all (the match is dropped, not downgraded). This stops
+   * benign developer prose ("store your api key in the vault") from flooding the
+   * report with low-value findings. `strongVerbs` are exempt.
+   */
+  requireAddressee?: boolean;
   description: string;
 }
 

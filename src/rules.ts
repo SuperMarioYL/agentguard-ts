@@ -38,7 +38,9 @@ interface RulesFile {
     id?: string;
     severity?: string;
     verbs?: string[];
+    strong_verbs?: string[];
     addressees?: string[];
+    require_addressee?: boolean;
     description?: string;
   }>;
 }
@@ -72,7 +74,10 @@ export async function loadRules(rulesPath?: string): Promise<Rule[]> {
     const severity = normalizeSeverity(entry.severity);
     if (!severity) continue;
     const verbs = (entry.verbs ?? []).filter((v) => typeof v === "string");
-    if (verbs.length === 0) continue;
+    const strongVerbs = (entry.strong_verbs ?? []).filter(
+      (v) => typeof v === "string",
+    );
+    if (verbs.length === 0 && strongVerbs.length === 0) continue;
 
     const addressees =
       Array.isArray(entry.addressees) && entry.addressees.length > 0
@@ -83,7 +88,9 @@ export async function loadRules(rulesPath?: string): Promise<Rule[]> {
       id: entry.id,
       severity,
       verbs,
+      strongVerbs,
       addressees,
+      requireAddressee: entry.require_addressee === true,
       description: entry.description ?? entry.id,
     });
   }
@@ -96,7 +103,10 @@ export async function loadRules(rulesPath?: string): Promise<Rule[]> {
 
 interface CompiledRule {
   rule: Rule;
+  /** Bare-verb patterns; suppressed without an addressee when requireAddressee. */
   verbRes: RegExp[];
+  /** Corroborated hostile patterns; fire regardless of requireAddressee. */
+  strongVerbRes: RegExp[];
   addrRes: RegExp[];
 }
 
@@ -104,10 +114,16 @@ interface CompiledRule {
  * Classify every extracted unit against the ruleset, returning ranked findings.
  *
  * For each (unit, rule): a finding is emitted only if one of the rule's verbs
- * matches. If an addressee pattern also matches, the finding fires at the rule's
- * full severity; otherwise it is downgraded one level (and dropped if that would
- * fall below LOW). This is the heuristic that keeps benign instructional prose
- * out of the HIGH bucket.
+ * (bare `verbs` or corroborated `strongVerbs`) matches. If an addressee pattern
+ * also matches, the finding fires at the rule's full severity; otherwise it is
+ * downgraded one level (and dropped if that would fall below LOW).
+ *
+ * Precision gate: when a rule sets `requireAddressee` (used for bare-noun
+ * credential signatures like `\bpassword\b`), a bare-`verbs` hit with no agent
+ * addressee is DROPPED rather than downgraded — so benign developer prose ("to
+ * rotate your password, run the helper script") produces no finding at all.
+ * `strongVerbs` (e.g. "read the .env", "harvest credentials") are inherently
+ * hostile and bypass this gate, still firing at the downgraded severity.
  */
 export function applyRules(units: TextUnit[], rules: Rule[]): Finding[] {
   const compiled = rules.map(compile);
@@ -115,10 +131,16 @@ export function applyRules(units: TextUnit[], rules: Rule[]): Finding[] {
 
   for (const unit of units) {
     for (const c of compiled) {
-      const verbHit = firstMatch(c.verbRes, unit.text);
+      const strongHit = firstMatch(c.strongVerbRes, unit.text);
+      const verbHit = strongHit ?? firstMatch(c.verbRes, unit.text);
       if (!verbHit) continue;
 
       const addrHit = firstMatch(c.addrRes, unit.text);
+
+      // Bare-noun rules require corroborating context: a matched addressee or a
+      // strong (hostile-verb) pattern. A bare noun in benign prose is dropped.
+      if (c.rule.requireAddressee && !addrHit && !strongHit) continue;
+
       const severity = addrHit
         ? c.rule.severity
         : downgrade(c.rule.severity);
@@ -145,6 +167,7 @@ function compile(rule: Rule): CompiledRule {
   return {
     rule,
     verbRes: rule.verbs.map(safeRegex).filter(isRegExp),
+    strongVerbRes: (rule.strongVerbs ?? []).map(safeRegex).filter(isRegExp),
     addrRes: (rule.addressees ?? []).map(safeRegex).filter(isRegExp),
   };
 }
