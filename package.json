@@ -1,8 +1,13 @@
 {
   "name": "agentguard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Scan your dependency tree for hidden instructions aimed at your coding agent before it runs them.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuperMarioYL/agentguard-ts.git"
+  },
+  "homepage": "https://github.com/SuperMarioYL/agentguard-ts",
   "bin": {
     "agentguard": "dist/cli.js"
   },

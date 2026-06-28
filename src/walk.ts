@@ -40,9 +40,20 @@ const SCAN_EXTENSIONS = [
   "yaml",
   "yml",
   "json",
+  // Cursor rule files — `.cursor/rules/*.mdc` are markdown-with-frontmatter
+  // agent-instruction files; the canonical place a coding agent reads its prose.
+  "mdc",
   // test fixtures / raw payloads
   "txt",
 ];
+
+/**
+ * Extensionless agent-instruction dotfiles. `.cursorrules` (and friends) carry
+ * the agent's project-level instructions but have no extension, so the
+ * extension glob never sees them — they must be matched by exact basename.
+ * Their absence meant a payload in `.cursorrules` scanned as a false "clean".
+ */
+const SCAN_BASENAMES = [".cursorrules", ".windsurfrules", ".clinerules"];
 
 /**
  * Directories and noise files that never contain hand-authored prose worth
@@ -81,9 +92,14 @@ export async function walk(
     ignore.push("**/node_modules/**");
   }
 
-  const pattern = `**/*.{${SCAN_EXTENSIONS.join(",")}}`;
+  // Two globs: every scannable extension, plus the exact-basename agent dotfiles
+  // (`.cursorrules` et al.) that have no extension for the first glob to match.
+  const patterns = [
+    `**/*.{${SCAN_EXTENSIONS.join(",")}}`,
+    ...SCAN_BASENAMES.map((name) => `**/${name}`),
+  ];
 
-  const entries = await fg(pattern, {
+  const entries = await fg(patterns, {
     cwd: path.resolve(rootDir),
     absolute: true,
     onlyFiles: true,

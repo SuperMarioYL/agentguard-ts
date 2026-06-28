@@ -40,6 +40,16 @@ const JS_TS_EXT = new Set([
 ]);
 
 /**
+ * Extensionless agent-instruction dotfiles (kept in sync with walk.ts's
+ * SCAN_BASENAMES). They carry plain agent prose and are extracted line-based.
+ */
+const AGENT_INSTRUCTION_BASENAMES = new Set([
+  ".cursorrules",
+  ".windsurfrules",
+  ".clinerules",
+]);
+
+/**
  * Extract normalized prose units from a list of file paths. Files that can't be
  * read or parsed are skipped so one bad file never aborts the scan.
  */
@@ -76,11 +86,21 @@ export async function extract(files: string[]): Promise<TextUnit[]> {
       }
 
       const ext = path.extname(file).toLowerCase();
+      const base = path.basename(file).toLowerCase();
       if (JS_TS_EXT.has(ext)) {
         extractJsTs(file, content, units);
       } else if (ext === ".py") {
         extractPython(file, content, units);
-      } else if (ext === ".md" || ext === ".markdown") {
+      } else if (
+        ext === ".md" ||
+        ext === ".markdown" ||
+        // Cursor `.mdc` rule files are markdown-with-frontmatter; treat as
+        // markdown so their agent-instruction prose is extracted line by line.
+        ext === ".mdc" ||
+        // Extensionless agent-instruction dotfiles (`.cursorrules` et al.) hold
+        // plain agent prose — line-based extraction, same as markdown.
+        AGENT_INSTRUCTION_BASENAMES.has(base)
+      ) {
         extractLineBased(file, content, "markdown", units);
       } else if (ext === ".yaml" || ext === ".yml" || ext === ".json") {
         extractStructured(file, content, units);

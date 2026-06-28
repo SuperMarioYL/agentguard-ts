@@ -14,6 +14,7 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { scan } from "./scanner.js";
 import { renderReport, renderJson, renderBadge } from "./report.js";
+import { VERSION } from "./version.js";
 
 const program = new Command();
 
@@ -22,7 +23,7 @@ program
   .description(
     "Scan your dependency tree for hidden instructions aimed at your coding agent.",
   )
-  .version("0.2.0");
+  .version(VERSION);
 
 program
   .command("scan", { isDefault: true })

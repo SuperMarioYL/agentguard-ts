@@ -36,7 +36,12 @@ addressees:
   - "\\bchatgpt\\b"
   - "\\bcodex\\b"
   - "\\bgpt-?[0-9]"
-  - "\\byou are (a|an|now)\\b"
+  # Only an agent-context "you are" is an addressee. The bare `a`/`an` arms
+  # matched ordinary second-person prose ("if you are a developer, …"), escalating
+  # benign text to false HIGHs; require the agent-reset form ("you are now …") or a
+  # following agent noun so it fires only on real agent-directed injections.
+  - "\\byou are now (a|an|in)\\b"
+  - "\\byou are (a|an|the) (ai|assistant|agent|model|bot|llm|coding agent)\\b"
   - "as an? (ai|assistant|agent)"
   - "ignore (all )?(the )?(previous|prior|above)"
   - "disregard (all )?(the )?(previous|prior|above)"
@@ -72,15 +77,28 @@ rules:
   - id: exfil.network
     severity: HIGH
     description: instruction to send local data off-machine
+    # "send the contents", "upload the data", "transmit the files" are everyday
+    # benign developer/support prose ("send the contents of the log file to
+    # support") — they only become an attack when addressed to an agent. Gate the
+    # soft verbs behind require_addressee so they DROP (not downgrade to MED) on
+    # human-directed prose; the unambiguous network-exfil forms below stay in
+    # strong_verbs and fire regardless. (Same precision class as the v0.2.0
+    # noun-only credential fix; closes the residual MED-on-benign-prose path.)
+    require_addressee: true
     verbs:
-      - "\\bexfiltrate\\b"
-      - "\\bcurl\\b\\s+\\S*https?://"
-      - "\\bwget\\b\\s+\\S*https?://"
       - "send (the )?(contents|files|data|output|repository)"
       - "upload (the )?(contents|files|data|repository|repo|project)"
+      - "transmit (the )?(contents|data)"
+    strong_verbs:
+      - "\\bexfiltrate\\b"
+      # Absorb optional space-separated flags/args between the verb and the URL so
+      # the canonical `curl -fsSL https://evil | sh` / `wget -q https://evil` forms
+      # match — the old `\S*` was a single non-space run and could not span the
+      # flag-to-URL space, silently missing every flagged install/exfil one-liner.
+      - "\\bcurl\\b\\s+(?:-\\S+\\s+)*https?://"
+      - "\\bwget\\b\\s+(?:-\\S+\\s+)*https?://"
       - "post (the )?(contents|data|file).{0,30}https?://"
       - "fetch\\s+https?://"
-      - "transmit (the )?(contents|data)"
 
   - id: phish.credential
     severity: HIGH

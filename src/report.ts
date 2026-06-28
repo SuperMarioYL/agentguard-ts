@@ -8,12 +8,33 @@
  * No scanning logic lives here; this module only formats what scanner.ts found.
  */
 
+import { createRequire } from "node:module";
 import pc from "picocolors";
 import type { Finding, ScanResult, Severity } from "./scanner.js";
+import { VERSION } from "./version.js";
 
 const SEVERITIES: Severity[] = ["HIGH", "MED", "LOW"];
 
-const REPO_URL = "https://github.com/agentguard/agentguard";
+// The canonical repo URL is derived from package.json's `repository` field so the
+// badge link can never drift from the real published repo (the v0.1 hardcoded
+// `agentguard/agentguard` pointed at a repo that does not exist — every pasted
+// badge 404'd). Falls back to the published repo if the field is somehow absent.
+const REPO_URL = (() => {
+  const require = createRequire(import.meta.url);
+  const pkg = require("../package.json") as {
+    repository?: string | { url?: string };
+  };
+  const raw =
+    typeof pkg.repository === "string"
+      ? pkg.repository
+      : pkg.repository?.url ?? "";
+  // Normalize git+https://…​.git / git@github.com:owner/repo.git → https URL.
+  const cleaned = raw
+    .replace(/^git\+/, "")
+    .replace(/^git@github\.com:/, "https://github.com/")
+    .replace(/\.git$/, "");
+  return cleaned || "https://github.com/SuperMarioYL/agentguard-ts";
+})();
 
 interface ReportOptions {
   /** Terse, log-stable output for CI (no color, one line per finding). */
@@ -84,7 +105,7 @@ export function renderJson(result: ScanResult): string {
   return JSON.stringify(
     {
       tool: "agentguard",
-      version: "0.1.0",
+      version: VERSION,
       root: result.rootDir,
       filesScanned: result.filesScanned,
       unitsScanned: result.unitsScanned,
