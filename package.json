@@ -1,6 +1,6 @@
 {
   "name": "agentguard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Scan your dependency tree for hidden instructions aimed at your coding agent before it runs them.",
   "type": "module",
   "repository": {

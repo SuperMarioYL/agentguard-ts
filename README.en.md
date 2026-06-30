@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/release-v0.2.0-f59e0b.svg" alt="v0.2.0" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/release-v0.4.0-f59e0b.svg" alt="v0.4.0" /></a>
   <a href="./.github/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-node%2022-2ea043.svg" alt="CI Node 22" /></a>
   <img src="https://img.shields.io/badge/Coding%20Agent-ready-7c3aed.svg" alt="Coding Agent ready" />
   <img src="https://img.shields.io/badge/Cursor-aware-06b6d4.svg" alt="Cursor aware" />
@@ -245,6 +245,8 @@ Smallest path to yes: CLI user hits the live signature-feed wall →
 - [x] **m2 — classify + report**: signature ruleset, colorized grouped report, non-zero exit on HIGH.
 - [x] **m3 — badge + CI**: `--json` / `--ci` modes, `agentguard badge`, reproducible jqwik catch in tests.
 - [x] **v0.2.0 hardening** — pipe-safe `--json`, zero noun-only false positives, byte-accurate size guard, full multi-document YAML (`---`) coverage.
+- [x] **v0.3.0 precision/recall + correctness** — no false HIGHs on benign second-person prose, `.cursorrules` / `.cursor/rules/*.mdc` scanned, flagged `curl -fsSL … | sh` caught, single-source version in `--json`, badge links to the real repo.
+- [x] **v0.4.0 dependency-code coverage** — payloads under `node_modules/<pkg>/dist|build|.next|coverage` (the dependency code a coding agent actually runs) are scanned again; a project's own `dist/` build output is still skipped.
 - [ ] Hosted team/CI tier — scan history, dashboard, org badge registry (paid).
 - [ ] Maintained cross-ecosystem signature feed, updated faster than the bundled rules.
 - [ ] More source languages (Go / Rust / Java AST), beyond JS/TS/Python + Markdown/YAML/text.

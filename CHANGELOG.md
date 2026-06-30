@@ -4,6 +4,26 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-07-01
+
+Correctness release. One high-severity, repo-verified recall fix on the primary
+threat surface — the dependency code a coding agent actually runs.
+
+### Fixed
+- **Dependency code under `node_modules/<pkg>/dist|build|.next|coverage` is now
+  scanned (`fix-node-modules-dist-build-swallowed`).** The build-artifact ignore
+  globs were recursive (a leading globstar), so `fast-glob` applied them to the
+  whole tree — including inside `node_modules`, where published npm packages ship
+  their real, executed code. A supply-chain payload in
+  `node_modules/<pkg>/dist/index.js` (or `build/`, `.next/`, `coverage/`) was
+  therefore never opened and scanned as a false "clean" — on the exact surface the
+  tool exists to guard. The build-artifact ignores are now anchored to the project
+  root, so a project's own generated `dist/` output is still skipped while a
+  dependency's `dist/build/.next/coverage` code is scanned again. Added
+  `test/fixtures/node_modules/evil-dist/dist/index.js` as the acceptance fixture
+  and tests asserting the dependency payload flags HIGH while the project's own
+  `dist/` stays skipped.
+
 ## [0.3.0] — 2026-06-28
 
 Precision/recall + correctness release. Five repo-verified defect fixes that

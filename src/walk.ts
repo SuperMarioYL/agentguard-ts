@@ -56,17 +56,13 @@ const SCAN_EXTENSIONS = [
 const SCAN_BASENAMES = [".cursorrules", ".windsurfrules", ".clinerules"];
 
 /**
- * Directories and noise files that never contain hand-authored prose worth
- * classifying. Lockfiles and minified bundles are excluded so the unit count
- * stays meaningful. `.git` is always skipped even though we walk other dotfiles
- * (e.g. `.cursor/`, `.mcp.json`) on purpose — those carry agent instructions.
+ * Noise that never contains hand-authored prose worth classifying, anywhere in
+ * the tree: `.git`, minified bundles, source maps, and lockfiles. These are safe
+ * to skip everywhere because they hold no agent-readable prose regardless of
+ * where they live.
  */
 const ALWAYS_IGNORE = [
   "**/.git/**",
-  "**/dist/**",
-  "**/build/**",
-  "**/.next/**",
-  "**/coverage/**",
   "**/*.min.js",
   "**/*.map",
   "**/*-lock.json",
@@ -74,6 +70,26 @@ const ALWAYS_IGNORE = [
   "**/pnpm-lock.yaml",
   "**/yarn.lock",
   "**/*.lock",
+];
+
+/**
+ * Build-output directories that hold a project's *own* generated artifacts — and
+ * so are noise in the project root — but, inside `node_modules`, hold a published
+ * package's REAL, executed code (e.g. `node_modules/yaml/dist`,
+ * `node_modules/tsx/dist`). The old, recursive "globstar dist globstar" form
+ * (a leading globstar + `dist` + a trailing globstar) used to apply to the whole
+ * tree, blanket-skipping `node_modules/<pkg>/dist|build|.next|coverage` — the
+ * exact dependency code a coding agent ingests and runs — so a supply-chain
+ * payload there scanned as a false "clean". These patterns are therefore anchored
+ * to the project root (no leading globstar; resolved from the walk `cwd`) so the
+ * project's own build output is still skipped while dependency code under
+ * `node_modules` is scanned.
+ */
+const ROOT_BUILD_ARTIFACT_IGNORE = [
+  "dist/**",
+  "build/**",
+  ".next/**",
+  "coverage/**",
 ];
 
 /**
@@ -87,7 +103,9 @@ export async function walk(
 ): Promise<string[]> {
   const includeDeps = opts.includeDeps ?? true;
 
-  const ignore = [...ALWAYS_IGNORE];
+  // Always-noise everywhere + the project's own build output (root-anchored, so it
+  // does NOT swallow dependency code under node_modules/<pkg>/dist|build|.next|coverage).
+  const ignore = [...ALWAYS_IGNORE, ...ROOT_BUILD_ARTIFACT_IGNORE];
   if (!includeDeps) {
     ignore.push("**/node_modules/**");
   }

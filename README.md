@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/release-v0.2.0-f59e0b.svg" alt="v0.2.0" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/release-v0.4.0-f59e0b.svg" alt="v0.4.0" /></a>
   <a href="./.github/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-node%2022-2ea043.svg" alt="CI Node 22" /></a>
   <img src="https://img.shields.io/badge/Cursor-aware-06b6d4.svg" alt="Cursor aware" />
 </p>
@@ -225,6 +225,8 @@ Stripe 结账。
 - [x] **m2 —— classify + report**：签名规则集、按严重级分组的彩色报告、HIGH 时非零退出。
 - [x] **m3 —— badge + CI**：`--json` / `--ci` 模式、`agentguard badge`、测试中可复现的 jqwik 捕获。
 - [x] **v0.2.0 硬化** —— 管道安全的 `--json`、裸名词零误报、字节级文件大小判断、多文档 YAML（`---`）全量扫描。
+- [x] **v0.3.0 精度/召回 + 正确性** —— 普通第二人称 prose 不再误判 HIGH、扫描 `.cursorrules` / `.cursor/rules/*.mdc`、捕获带参数的 `curl -fsSL … | sh`、`--json` 版本号单一来源、徽章链接指向真实仓库。
+- [x] **v0.4.0 依赖代码覆盖** —— `node_modules/<pkg>/dist|build|.next|coverage` 下的 payload（即编码 agent 实际运行的依赖代码）重新被扫描；项目自身的 `dist/` 构建产物仍被跳过。
 - [ ] 托管 Team / CI 版 —— 扫描历史、仪表盘、组织徽章注册表（付费）。
 - [ ] 持续维护的跨生态签名源，更新快于内置规则。
 - [ ] 更多源语言（Go / Rust / Java AST），不止 JS/TS/Python + Markdown/YAML/text。
