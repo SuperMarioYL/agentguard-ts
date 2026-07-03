@@ -4,6 +4,41 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-07-04
+
+Correctness release. Three repo-verified recall fixes, each a silent false-clean
+on the primary threat surface (the tool returned exit 0 on a real payload).
+
+### Fixed
+- **Decorator-using JS/TS sources are no longer scanned as a silent clean
+  (`fix-decorator-file-scanned-as-clean`).** `extractJsTs` parsed with the babel
+  plugins `["typescript", "jsx"]` but without `decorators-legacy`, so any source
+  using a decorator (`@Component`, `@Injectable`, `@Entity` — Angular, NestJS,
+  TypeORM, MobX, class-validator, all common in real dependencies) made babel
+  **throw** instead of error-recovering. `extractJsTs` had no local `try/catch`,
+  so the throw propagated to `extract()`'s blanket catch and the **entire file**
+  was skipped (0 units, exit 0). The plugin list now includes `decorators-legacy`,
+  and `extractJsTs` falls back to line-based prose extraction on any total parse
+  failure so no source file is ever a silent clean.
+- **Injection payloads in YAML/JSON mapping keys are now scanned
+  (`fix-yaml-json-key-payload-not-scanned`).** `extractStructured` returned early
+  on every mapping-key scalar (`if (key === "key") return;`), extracting only
+  values and sequence items — so a payload placed in a mapping key (an MCP tool
+  `name:`, an arbitrary object key an agent reads) was never extracted. Keys are
+  attacker-controllable on exactly the surface AgentGuard targets, so their prose
+  is now emitted as a `yaml` unit (values/sequences unchanged).
+- **Real source files under a `fixtures/` directory are extracted by their real
+  type (`fix-fixtures-dir-forces-linebased-misparse`).** `isFixturePath` matched
+  any path segment literally named `fixtures`/`__fixtures__`, forcing line-based
+  "fixture" extraction — bypassing the JS/TS AST extractor and the structured
+  YAML/JSON extractor — for every project's own `test/fixtures/` tree. A real
+  `.ts`/`.yaml`/`.md`/`.py` under `fixtures/` now goes through its real extractor
+  (correct `source_kind`, AST parse, identifier drop); the fixture fallback is
+  reserved for genuinely extensionless payload files.
+
+### Changed
+- `package.json` version → `0.5.0`.
+
 ## [0.4.0] — 2026-07-01
 
 Correctness release. One high-severity, repo-verified recall fix on the primary

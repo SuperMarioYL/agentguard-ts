@@ -78,13 +78,6 @@ export async function extract(files: string[]): Promise<TextUnit[]> {
     if (content.length === 0) continue;
 
     try {
-      // A file living under a fixtures dir is treated as raw payload data
-      // regardless of extension — that is what test fixtures are.
-      if (isFixturePath(file)) {
-        extractLineBased(file, content, "fixture", units);
-        continue;
-      }
-
       const ext = path.extname(file).toLowerCase();
       const base = path.basename(file).toLowerCase();
       if (JS_TS_EXT.has(ext)) {
@@ -105,6 +98,14 @@ export async function extract(files: string[]): Promise<TextUnit[]> {
       } else if (ext === ".yaml" || ext === ".yml" || ext === ".json") {
         extractStructured(file, content, units);
       } else if (ext === ".txt") {
+        extractLineBased(file, content, "fixture", units);
+      } else if (isFixturePath(file)) {
+        // Fallback ONLY for files with no recognized extension living under a
+        // fixtures dir — genuinely raw payload data. A real .ts/.yaml/.md/.py
+        // under a user's own test/fixtures/ tree is extracted by its real
+        // extension above (correct source_kind + AST), instead of being
+        // blanket line-based mis-parsed just because the path contains
+        // "fixtures".
         extractLineBased(file, content, "fixture", units);
       }
     } catch {
@@ -130,11 +131,25 @@ function normalize(text: string): string {
 // ---------------------------------------------------------------------------
 
 function extractJsTs(file: string, content: string, units: TextUnit[]): void {
-  const ast = babelParse(content, {
-    sourceType: "unambiguous",
-    errorRecovery: true,
-    plugins: ["typescript", "jsx"],
-  });
+  let ast: ReturnType<typeof babelParse>;
+  try {
+    ast = babelParse(content, {
+      sourceType: "unambiguous",
+      errorRecovery: true,
+      // `decorators-legacy` is required or babel THROWS (not error-recovers) on
+      // any decorator (@Component, @Injectable, @Entity — Angular / NestJS /
+      // TypeORM / MobX / class-validator, all common in real deps). Without it
+      // the throw propagated to extract()'s blanket catch and the ENTIRE file
+      // was silently skipped, scanning a decorator-using source as false-clean.
+      plugins: ["typescript", "jsx", "decorators-legacy"],
+    });
+  } catch {
+    // A total parse failure (syntax babel cannot even error-recover from) must
+    // NOT make the whole file a silent "clean". Fall back to line-based prose
+    // extraction so an agent-directed payload is still surfaced.
+    extractLineBased(file, content, "comment", units);
+    return;
+  }
 
   for (const comment of ast.comments ?? []) {
     const text = normalize(comment.value);
@@ -296,8 +311,6 @@ function extractStructured(
 
     visit(doc, {
       Scalar(key, node, ancestors) {
-        // Skip mapping keys themselves; keep mapping values and sequence items.
-        if (key === "key") return;
         if (typeof node.value !== "string") return;
 
         const text = normalize(node.value);
@@ -305,6 +318,16 @@ function extractStructured(
 
         const range = node.range;
         const line = range ? lineCounter.linePos(range[0]).line : 1;
+
+        // Mapping KEYS are attacker-controllable in exactly the manifests we
+        // target (MCP tool `name:`/config keys, arbitrary object keys an agent
+        // reads), so scan their prose too — previously the `key === "key"`
+        // early-return let a payload placed in a key scan as clean. A key is
+        // never a description value, so tag it plain "yaml".
+        if (key === "key") {
+          units.push({ file, line, source_kind: "yaml", text });
+          return;
+        }
 
         const source_kind: SourceKind = isDescriptionValue(ancestors)
           ? "mcp_tool_desc"
