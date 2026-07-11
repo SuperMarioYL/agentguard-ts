@@ -97,6 +97,12 @@ export async function extract(files: string[]): Promise<TextUnit[]> {
         extractLineBased(file, content, "markdown", units);
       } else if (ext === ".yaml" || ext === ".yml" || ext === ".json") {
         extractStructured(file, content, units);
+        // The structured parser discards `#` comments, so a payload hidden in a
+        // YAML comment scanned as a silent false-clean. Scan them line-based
+        // (YAML only — JSON has no `#` comment syntax).
+        if (ext === ".yaml" || ext === ".yml") {
+          extractYamlComments(file, content, units);
+        }
       } else if (ext === ".txt") {
         extractLineBased(file, content, "fixture", units);
       } else if (isFixturePath(file)) {
@@ -190,6 +196,17 @@ function collectStringLiterals(
   const line = obj.loc?.start?.line ?? 1;
 
   if (obj.type === "StringLiteral" && typeof obj.value === "string") {
+    pushLiteral(obj.value, file, line, units);
+    return;
+  }
+
+  // JSX element text (`<div>Dear coding agent: ...</div>`) is a JSXText node —
+  // neither a StringLiteral nor a TemplateLiteral — so without this branch a
+  // payload written as visible JSX text was never extracted and scanned as a
+  // silent false-clean. JSX/TSX is pervasive in the React deps we walk, making
+  // JSX text a real supply-chain injection vector. It has no child prose nodes
+  // worth recursing into, so classify and return.
+  if (obj.type === "JSXText" && typeof obj.value === "string") {
     pushLiteral(obj.value, file, line, units);
     return;
   }
@@ -337,6 +354,48 @@ function extractStructured(
       },
     });
   }
+}
+
+/**
+ * Extract prose from YAML `#` comments. The `yaml` parser discards comments, so
+ * a payload hidden in a comment of a YAML manifest / CI / MCP config — exactly
+ * the files this tool targets, and prose an agent reading the file ingests — was
+ * never seen by extractStructured and scanned as a silent false-clean. This
+ * mirrors the Python `#`-comment extraction (extractPython). JSON has no `#`
+ * comment syntax, so callers restrict this to `.yaml`/`.yml`.
+ */
+function extractYamlComments(
+  file: string,
+  content: string,
+  units: TextUnit[],
+): void {
+  const lines = content.split(/\r?\n/);
+  lines.forEach((raw, i) => {
+    const hash = yamlCommentStart(raw);
+    if (hash === -1) return;
+    const text = normalize(raw.slice(hash + 1));
+    if (text.length < 3) return;
+    units.push({ file, line: i + 1, source_kind: "yaml", text });
+  });
+}
+
+/**
+ * Index of the `#` that begins a YAML comment on a line, or -1. Per the YAML
+ * spec a `#` starts a comment only at the line start or when preceded by
+ * whitespace; a `#` embedded in a token (e.g. a URL fragment `a#b` or a
+ * color `#fff`) is literal and not a comment. This is a lightweight,
+ * intentionally over-inclusive heuristic (it does not track quotes) — a `#`
+ * inside a quoted scalar that is preceded by a space may be re-scanned as a
+ * comment, but that scalar is already scanned separately, so the effect is a
+ * harmless duplicate rather than a miss; the downstream verb+addressee gate
+ * suppresses benign prose.
+ */
+function yamlCommentStart(line: string): number {
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== "#") continue;
+    if (i === 0 || line[i - 1] === " " || line[i - 1] === "\t") return i;
+  }
+  return -1;
 }
 
 /** True when the scalar is the value of a `description:` pair (MCP tool prose). */

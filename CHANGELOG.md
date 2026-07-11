@@ -4,6 +4,37 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-07-11
+
+Correctness release. Two repo-verified recall fixes from a source audit of the
+shipped v0.5.0 extractor, each a silent false-clean on the primary threat
+surface (the tool returned exit 0 on a real, agent-directed payload). Distinct
+from the Go sibling `agentguard` v0.6.0 — these are TypeScript-extractor-specific
+findings.
+
+### Fixed
+- **Payloads hidden in a YAML `#` comment are no longer scanned as a silent
+  clean (`fix-yaml-comment-payload-scanned-as-clean`).** `extractStructured`
+  parses YAML/JSON with the `yaml` library and visits only scalar nodes, but the
+  parser discards `#` comments — so an injection instruction placed in a YAML
+  comment (a natural hiding spot in a manifest / CI / MCP config, exactly the
+  files this tool targets, and prose an agent reading the file ingests) was never
+  seen and the scan returned exit 0. The Python extractor already scans `#`
+  comments, so the omission was inconsistent. A line-based `#`-comment pass now
+  runs for `.yaml`/`.yml` (a `#` begins a comment only at line start or after
+  whitespace — so a `#` inside a URL/token is left literal), emitting each
+  comment's prose at its real source line. JSON has no `#` comment syntax, so the
+  pass is YAML-only. Guarded by regression tests (single- and multi-document
+  YAML, plus a URL-fragment precision test).
+- **Payloads written as JSX element text are no longer scanned as a silent clean
+  (`fix-jsx-text-scanned-as-clean`).** `collectStringLiterals` walked the babel
+  AST collecting only `StringLiteral` and `TemplateLiteral` values, but JSX
+  element text (`<div>Dear coding agent: …</div>`) is a `JSXText` node — so a
+  payload written as visible JSX text was never extracted and scanned as clean,
+  despite JSX/TSX being pervasive in the React dependency trees the tool walks by
+  default. `JSXText` nodes are now collected through the same prose filter as
+  string literals. Guarded by a regression test.
+
 ## [0.5.0] — 2026-07-04
 
 Correctness release. Three repo-verified recall fixes, each a silent false-clean
