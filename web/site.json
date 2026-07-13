@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "name": "AgentGuard",
+  "github": "https://github.com/SuperMarioYL/agentguard-ts",
+  "host": "agentguard-ts.lei6393.com",
+  "lang": { "primary": "zh", "toggle": true },
+  "accent": ["#e0524d", "#f18a5c", "#c33b4e"],
+  "hero": {
+    "eyebrow": { "zh": "本地 · 离线 · 零配置", "en": "Local · Offline · Zero-config" },
+    "headline": {
+      "zh": "在 agent 执行依赖之前\n揪出藏在里面的恶意指令",
+      "en": "Catch the hidden instructions in your deps\nbefore your coding agent runs them"
+    },
+    "sub": {
+      "zh": "一条命令扫描项目与 node_modules，把注释、Markdown、YAML、字符串字面量、MCP 工具描述里瞄准 agent 的祈使指令报出来，命中 HIGH 即非零退出。",
+      "en": "One command scans your project and node_modules, flags the agent-directed imperatives hidden in comments, Markdown, YAML, string literals and MCP tool descriptions, and exits non-zero on any HIGH."
+    },
+    "command": "npx agentguard scan .",
+    "cta": { "zh": "开始使用", "en": "Get started" },
+    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+  },
+  "advantages": [
+    {
+      "title": { "zh": "把 prose 当可执行代码来审", "en": "Treats prose as executable code" },
+      "body": {
+        "zh": "编码 agent 会读 README、注释、依赖文档并照做——那份 prose 就是代码。AgentGuard 遍历项目与 node_modules，把注释、Markdown、YAML、字符串字面量、MCP 工具描述归一化为带类型的文本单元，再逐句审。",
+        "en": "A coding agent reads and acts on READMEs, comments and dependency docs — so that prose is code. AgentGuard walks your project and node_modules and normalizes comments, Markdown, YAML, string literals and MCP tool descriptions into typed text units, then inspects each one."
+      },
+      "chips": [
+        "› 遍历 project + node_modules",
+        "› 6 类源 → 带类型文本单元"
+      ]
+    },
+    {
+      "title": { "zh": "祈使动词 × agent 收件人 叉积判定", "en": "Verb × agent-addressee cross-product" },
+      "body": {
+        "zh": "检测不是关键词匹配：一个祈使动词（delete / curl /「ignore previous instructions」）只有在同一行对 AI / assistant / agent / model 说话时才升到 HIGH。普通 prose 里的裸「delete」「.env」因缺少收件人被直接丢弃——一份干净的 README 产出零 finding。",
+        "en": "Detection isn't keyword matching: an imperative verb (delete / curl / \"ignore previous instructions\") escalates to HIGH only when the same line addresses an AI / assistant / agent / model. A bare \"delete\" or \".env\" in ordinary prose is dropped for lack of an addressee — a clean README yields zero findings."
+      },
+      "chips": [
+        "› require_addressee 去误报",
+        "› strong_verbs 兜底真 payload"
+      ]
+    },
+    {
+      "title": { "zh": "7 类瞄准 agent 的威胁分类", "en": "7 agent-targeted threat classes" },
+      "body": {
+        "zh": "每条命中产出一个 AgentThreat finding——file、line、source_kind、rule_id、severity，以及点名瞄准哪个 agent 收件人的 why。内置签名语料覆盖删除、外传、窃密、指令覆盖、提权、后门、隐蔽七类攻击，可用 --rulesPath 覆盖。",
+        "en": "Every hit is an AgentThreat finding — file, line, source_kind, rule_id, severity, and a why naming the agent it targets. The built-in signature corpus covers destroy, exfiltrate, credential-phish, injection-override, privilege-escalation, persistence and obfuscation, and is overridable via --rulesPath."
+      },
+      "chips": [
+        "› 4 HIGH + 3 MED 类别",
+        "› --rulesPath 自定义语料"
+      ]
+    },
+    {
+      "title": { "zh": "直接落进 CI，无需接线", "en": "Drops into CI, no wiring" },
+      "body": {
+        "zh": "存在 HIGH 即非零退出，scan 直接用作 CI 或 pre-commit 门禁。--ci 输出无 ANSI、日志稳定；--json 机器可读且管道安全，重定向到文件或管道给 jq 时不会被截断。全程本地、离线、确定性，无需 API key。",
+        "en": "Any HIGH means a non-zero exit, so scan works as a CI or pre-commit gate with no extra wiring. --ci is terse, log-stable and ANSI-free; --json is machine-readable and pipe-safe, never truncated when redirected to a file or piped to jq. Fully local, offline and deterministic — no API key."
+      },
+      "chips": [
+        "› HIGH → 非零退出",
+        "› --json 管道安全 · 离线确定性"
+      ]
+    }
+  ],
+  "scene": {
+    "kind": "hub-nodes",
+    "nodes": [
+      "destructive.delete",
+      "exfil.network",
+      "phish.credential",
+      "injection.override",
+      "privilege.escalate",
+      "persistence.backdoor",
+      "obfuscation.hidden"
+    ]
+  },
+  "cta": {
+    "headline": {
+      "zh": "在 agent 替你跑之前，先扫一遍",
+      "en": "Scan it before your agent runs it"
+    },
+    "sub": {
+      "zh": "开源、MIT、永久免费自托管。零安装、零配置、无需 API key。",
+      "en": "Open source, MIT, free to self-host forever. Zero install, zero config, no API key."
+    },
+    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
+  },
+  "footer": {
+    "tag": {
+      "zh": "面向编码 agent 的依赖 prose 注入扫描器",
+      "en": "The dependency-prose injection scanner for coding agents"
+    }
+  }
+}
