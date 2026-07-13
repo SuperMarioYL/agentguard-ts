@@ -275,6 +275,30 @@ function extractPython(file: string, content: string, units: TextUnit[]): void {
       text,
     });
   }
+
+  // Single-line string literals. The JS/TS extractor collects string-literal
+  // prose (an agent-readable supply-chain injection vector), but the Python
+  // path previously extracted only `#` comments + triple-quoted docstrings — so
+  // an identical payload placed in an ordinary Python string constant (e.g. a
+  // module-level `PROMPT = "…"` or an MCP tool `description="…"` kwarg) scanned
+  // as a silent false-clean, inconsistent with JS/TS. Blank out the already-
+  // extracted triple-quoted spans first (preserving newlines so line numbers are
+  // unchanged), then pull single/double-quoted spans line by line and push them
+  // through the same prose filter as JS/TS literals. No AST dep is available for
+  // Python, so this mirrors the existing regex approach; the downstream
+  // verb+addressee gate suppresses benign prose (as for `#` comments).
+  const withoutDocstrings = content.replace(
+    /("""|''')[\s\S]*?\1/g,
+    (span) => span.replace(/[^\n]/g, " "),
+  );
+  const stringRe = /("|')((?:\\.|(?!\1).)*)\1/g;
+  withoutDocstrings.split(/\r?\n/).forEach((raw, i) => {
+    let sm: RegExpExecArray | null;
+    stringRe.lastIndex = 0;
+    while ((sm = stringRe.exec(raw)) !== null) {
+      pushLiteral(sm[2] ?? "", file, i + 1, units);
+    }
+  });
 }
 
 function lineAtIndex(content: string, index: number): number {

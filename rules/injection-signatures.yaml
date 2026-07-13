@@ -30,7 +30,16 @@ addressees:
   - "coding agent"
   - "\\bLLM\\b"
   - "language model"
-  - "\\bcursor\\b"
+  # Only Cursor-the-IDE, not the text caret. A bare \bcursor\b also matches the
+  # ubiquitous editor "cursor" (mouse/text caret), so benign prose — "position
+  # the cursor, then delete the line" — escalated a bare destructive/exfil verb
+  # to a false HIGH (exit 1 on a clean editor README). Same defect class as the
+  # narrowed \bagent\b above; require a product qualifier (Cursor AI/IDE/agent/
+  # editor) or a vocative address (Dear/hey Cursor) so it fires only on real
+  # Cursor-directed prose. Direct "Cursor: ignore previous instructions …"
+  # injections still fire via the injection-override addressees below.
+  - "\\bcursor\\s+(ai|ide|agent|assistant|editor|composer|bot)\\b"
+  - "\\b(dear|hey|hi|hello|attention)\\s+cursor\\b"
   - "\\bcopilot\\b"
   - "\\bclaude\\b"
   - "\\bchatgpt\\b"

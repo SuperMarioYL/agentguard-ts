@@ -4,6 +4,45 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-07-14
+
+Correctness release. Two repo-verified fixes from a source audit of the shipped
+v0.6.0 extractor and rule corpus — one precision defect, one recall defect, both
+on the primary scan surface. Distinct from the Go sibling `agentguard` — these
+are TypeScript-specific findings.
+
+### Fixed
+- **Benign text-editor prose that mentions the "cursor" caret is no longer
+  escalated to a false HIGH (`fix-cursor-addressee-false-high`).** The addressee
+  pattern `\bcursor\b` was intended for Cursor-the-IDE, but a bare match also
+  catches the ubiquitous text/mouse caret. Once an addressee matches, any verb
+  hit in the same line is escalated to full severity — so ordinary editor
+  documentation ("position the cursor at the start of the line and delete it",
+  "move the cursor to the end, then delete the selection") produced a HIGH
+  `destructive.delete` finding and a non-zero exit, failing CI on a clean README.
+  The addressee is now narrowed to real Cursor contexts — a product qualifier
+  (`Cursor AI` / `Cursor IDE` / `Cursor agent` / `Cursor editor` …) or a vocative
+  address (`Dear Cursor`, `hey Cursor`) — the same narrowing already applied to
+  the bare `agent` addressee. Direct `Cursor: ignore previous instructions …`
+  injections still fire HIGH via the injection-override addressees. Guarded by a
+  regression test (five benign caret lines produce zero findings; a genuine
+  Cursor-directed injection still fires HIGH).
+- **Payloads in a Python string literal are no longer scanned as a silent clean
+  (`fix-python-string-literal-scanned-as-clean`).** The JS/TS extractor collects
+  string-literal prose (an agent-readable supply-chain injection vector), but the
+  Python extractor pulled only `#` comments and triple-quoted docstrings — so an
+  identical payload placed in an ordinary Python string constant
+  (`PROMPT = "…"`, a `description="…"` keyword argument) was never extracted and
+  the scan returned exit 0, while the byte-identical payload in a JS/TS string
+  literal was flagged HIGH. Python is a first-class scanned language and
+  Python-based MCP servers routinely define tool descriptions as string
+  constants, so this was a real recall gap and an inconsistency between the two
+  extractor paths. Python single-line string literals are now extracted through
+  the same prose filter as JS/TS literals (a regex pass, since no Python AST
+  dependency is bundled), restoring parity. Guarded by regression tests (double-
+  and single-quoted payloads flag HIGH, benign code stays clean, and docstrings
+  are not double-counted).
+
 ## [0.6.0] — 2026-07-11
 
 Correctness release. Two repo-verified recall fixes from a source audit of the
