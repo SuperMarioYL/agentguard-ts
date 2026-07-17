@@ -8,12 +8,12 @@
   "hero": {
     "eyebrow": { "zh": "本地 · 离线 · 零配置", "en": "Local · Offline · Zero-config" },
     "headline": {
-      "zh": "在 agent 执行依赖之前\n揪出藏在里面的恶意指令",
-      "en": "Catch the hidden instructions in your deps\nbefore your coding agent runs them"
+      "zh": "依赖里藏着指挥 agent 删文件、偷密钥的指令\n在它替你执行之前先揪出来",
+      "en": "Hidden in your deps: instructions that tell your agent\nto delete files or steal keys — catch them before it runs them"
     },
     "sub": {
-      "zh": "一条命令扫描项目与 node_modules，把注释、Markdown、YAML、字符串字面量、MCP 工具描述里瞄准 agent 的祈使指令报出来，命中 HIGH 即非零退出。",
-      "en": "One command scans your project and node_modules, flags the agent-directed imperatives hidden in comments, Markdown, YAML, string literals and MCP tool descriptions, and exits non-zero on any HIGH."
+      "zh": "一条命令扫遍项目和所有依赖，把伪装成文档、注释、工具说明、暗中指挥你的编码 agent 去删数据、外传文件、读密钥的句子挑出来。给每一个让 Cursor / Claude Code / Codex 跑在自己代码上的人——干净的依赖零误报。",
+      "en": "One command scans your project and every dependency, surfacing the sentences disguised as docs, comments or tool descriptions that quietly tell your coding agent to delete data, exfiltrate files or read your keys. For anyone letting Cursor / Claude Code / Codex run on their code — clean deps stay quiet."
     },
     "command": "npx agentguard scan .",
     "cta": { "zh": "开始使用", "en": "Get started" },
@@ -21,66 +21,66 @@
   },
   "advantages": [
     {
-      "title": { "zh": "把 prose 当可执行代码来审", "en": "Treats prose as executable code" },
+      "title": { "zh": "你的 agent 读 README 就会照做——文档就是攻击面", "en": "Your agent reads READMEs and obeys — so docs are the attack surface" },
       "body": {
-        "zh": "编码 agent 会读 README、注释、依赖文档并照做——那份 prose 就是代码。AgentGuard 遍历项目与 node_modules，把注释、Markdown、YAML、字符串字面量、MCP 工具描述归一化为带类型的文本单元，再逐句审。",
-        "en": "A coding agent reads and acts on READMEs, comments and dependency docs — so that prose is code. AgentGuard walks your project and node_modules and normalizes comments, Markdown, YAML, string literals and MCP tool descriptions into typed text units, then inspects each one."
+        "zh": "编码 agent 摄取 README、注释、依赖文档，然后带着文件、shell、网络权限去执行。AgentGuard 把这些当成可执行代码来审：遍历你的项目和每一个依赖，把散落在文档、注释、配置、工具说明里的句子逐句过一遍。",
+        "en": "A coding agent ingests READMEs, comments and dependency docs, then executes them with file, shell and network permissions. AgentGuard treats that prose as executable code: it walks your project and every dependency, inspecting every sentence buried in docs, comments, config and tool descriptions."
       },
       "chips": [
-        "› 遍历 project + node_modules",
-        "› 6 类源 → 带类型文本单元"
+        "› 扫项目 + 所有依赖",
+        "› 文档 / 注释 / 配置 / 工具说明都过审"
       ]
     },
     {
-      "title": { "zh": "祈使动词 × agent 收件人 叉积判定", "en": "Verb × agent-addressee cross-product" },
+      "title": { "zh": "不乱喊狼来了——干净的依赖零误报", "en": "No crying wolf — clean deps stay quiet" },
       "body": {
-        "zh": "检测不是关键词匹配：一个祈使动词（delete / curl /「ignore previous instructions」）只有在同一行对 AI / assistant / agent / model 说话时才升到 HIGH。普通 prose 里的裸「delete」「.env」因缺少收件人被直接丢弃——一份干净的 README 产出零 finding。",
-        "en": "Detection isn't keyword matching: an imperative verb (delete / curl / \"ignore previous instructions\") escalates to HIGH only when the same line addresses an AI / assistant / agent / model. A bare \"delete\" or \".env\" in ordinary prose is dropped for lack of an addressee — a clean README yields zero findings."
+        "zh": "「delete」「.env」这些词在普通开发文档里到处都是，普通关键词扫描会把它们全报成危险。AgentGuard 只在一段话明确在对你的 AI / agent 说话时才升级——对着人说的普通文档直接跳过。结果：一份干净的 README 产出零噪音。",
+        "en": "'delete' and '.env' show up in ordinary dev docs all the time, and a naive keyword scan flags them all. AgentGuard only escalates when a sentence is clearly addressing your AI / agent — ordinary prose aimed at humans is skipped. The result: a clean README produces zero noise."
       },
       "chips": [
-        "› require_addressee 去误报",
-        "› strong_verbs 兜底真 payload"
+        "› 区分「对人」还是「对你的 agent」",
+        "› 干净的依赖 = 零噪音"
       ]
     },
     {
-      "title": { "zh": "7 类瞄准 agent 的威胁分类", "en": "7 agent-targeted threat classes" },
+      "title": { "zh": "能认出七种瞄准你 agent 的攻击", "en": "Recognizes seven attacks aimed at your agent" },
       "body": {
-        "zh": "每条命中产出一个 AgentThreat finding——file、line、source_kind、rule_id、severity，以及点名瞄准哪个 agent 收件人的 why。内置签名语料覆盖删除、外传、窃密、指令覆盖、提权、后门、隐蔽七类攻击，可用 --rulesPath 覆盖。",
-        "en": "Every hit is an AgentThreat finding — file, line, source_kind, rule_id, severity, and a why naming the agent it targets. The built-in signature corpus covers destroy, exfiltrate, credential-phish, injection-override, privilege-escalation, persistence and obfuscation, and is overridable via --rulesPath."
+        "zh": "每一条命中都告诉你：哪个文件、哪一行、它在指挥你的 agent 干什么——删数据、把项目外传、偷密钥、覆盖指令、提权、埋后门、藏起来。覆盖依赖文档、注释、配置和工具描述里的真实 payload，你也可以自己加规则。",
+        "en": "Every hit tells you which file, which line, and what it's telling your agent to do — delete data, exfiltrate the project, harvest keys, override instructions, escalate privileges, plant a backdoor, or hide. Covers real payloads in dependency docs, comments, config and tool descriptions — and you can add your own rules."
       },
       "chips": [
-        "› 4 HIGH + 3 MED 类别",
-        "› --rulesPath 自定义语料"
+        "› 删数据 / 外传 / 偷密钥 / 覆盖指令",
+        "› 可加自己的规则"
       ]
     },
     {
-      "title": { "zh": "直接落进 CI，无需接线", "en": "Drops into CI, no wiring" },
+      "title": { "zh": "合进 CI 一行挡住坏依赖", "en": "One line in CI blocks bad deps" },
       "body": {
-        "zh": "存在 HIGH 即非零退出，scan 直接用作 CI 或 pre-commit 门禁。--ci 输出无 ANSI、日志稳定；--json 机器可读且管道安全，重定向到文件或管道给 jq 时不会被截断。全程本地、离线、确定性，无需 API key。",
-        "en": "Any HIGH means a non-zero exit, so scan works as a CI or pre-commit gate with no extra wiring. --ci is terse, log-stable and ANSI-free; --json is machine-readable and pipe-safe, never truncated when redirected to a file or piped to jq. Fully local, offline and deterministic — no API key."
+        "zh": "发现危险就让构建失败，scan 直接当 CI 或 pre-commit 门禁，无需额外接线。全程本地、离线跑，不要 API key、不联网——结果可复现，机器可读的输出能直接喂给下游工具或存档。",
+        "en": "Any danger fails the build, so scan works as a CI or pre-commit gate with no extra wiring. It runs fully local and offline — no API key, no network — with reproducible results and machine-readable output you can pipe to downstream tools or archive."
       },
       "chips": [
-        "› HIGH → 非零退出",
-        "› --json 管道安全 · 离线确定性"
+        "› 本地 · 离线 · 无需 API key",
+        "› CI / pre-commit 直接当门禁"
       ]
     }
   ],
   "scene": {
     "kind": "hub-nodes",
     "nodes": [
-      "destructive.delete",
-      "exfil.network",
-      "phish.credential",
-      "injection.override",
-      "privilege.escalate",
-      "persistence.backdoor",
-      "obfuscation.hidden"
+      "删你的文件",
+      "把项目外传",
+      "偷读密钥",
+      "覆盖指令",
+      "提权越界",
+      "埋后门",
+      "藏起来不让你看见"
     ]
   },
   "cta": {
     "headline": {
-      "zh": "在 agent 替你跑之前，先扫一遍",
-      "en": "Scan it before your agent runs it"
+      "zh": "在 agent 替你执行依赖之前，先扫一遍",
+      "en": "Scan your deps before your agent runs them"
     },
     "sub": {
       "zh": "开源、MIT、永久免费自托管。零安装、零配置、无需 API key。",
@@ -90,8 +90,8 @@
   },
   "footer": {
     "tag": {
-      "zh": "面向编码 agent 的依赖 prose 注入扫描器",
-      "en": "The dependency-prose injection scanner for coding agents"
+      "zh": "装前看清一个依赖真的会指挥你的 agent 干什么",
+      "en": "See what a dependency will actually tell your agent to do — before you install it"
     }
   }
 }
