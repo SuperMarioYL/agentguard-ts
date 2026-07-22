@@ -83,8 +83,8 @@
       "en": "Scan your deps before your agent runs them"
     },
     "sub": {
-      "zh": "开源、MIT、永久免费自托管。零安装、零配置、无需 API key。",
-      "en": "Open source, MIT, free to self-host forever. Zero install, zero config, no API key."
+      "zh": "开源、Apache-2.0、永久免费自托管。零安装、零配置、无需 API key。",
+      "en": "Open source, Apache-2.0, free to self-host forever. Zero install, zero config, no API key."
     },
     "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
   },
