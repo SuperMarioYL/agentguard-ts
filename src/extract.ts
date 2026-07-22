@@ -252,13 +252,36 @@ function pushLiteral(
 // ---------------------------------------------------------------------------
 
 function extractPython(file: string, content: string, units: TextUnit[]): void {
-  const lines = content.split(/\r?\n/);
+  // Blank triple-quoted docstring spans (preserving newlines so line numbers and
+  // the `#`-comment / single-line-string passes stay aligned). Docstrings are
+  // extracted separately below; a `#` inside a docstring is not a comment. This
+  // blanking was already done for the string pass — it is now computed once and
+  // shared so the `#`-comment pass is also string-aware.
+  const withoutDocstrings = content.replace(
+    /("""|''')[\s\S]*?\1/g,
+    (span) => span.replace(/[^\n]/g, " "),
+  );
+
+  // `#` comments. Blank single/double-quoted string spans on each line
+  // (preserving length) BEFORE finding the `#`, so a `#` inside a string literal
+  // is invisible to the comment scan and only a real trailing `#` comment is
+  // extracted. Previously the pass took `raw.indexOf("#")` on the raw line, so
+  // the first `#` — even one inside a quoted string — was treated as the comment
+  // start and everything after it became one unit. That merged an in-string
+  // addressee (`\bAI\b`, from text after the in-string `#`) with a destructive
+  // verb (`delete`, from the real trailing comment) into a single unit, which
+  // applyRules escalated to a false HIGH + exit 1 on benign Python. Mirrors the
+  // docstring blanking above; the in-string prose is still scanned separately by
+  // the string pass below, where the verb+addressee gate suppresses benign text.
+  const stringBlankRe = /("|')((?:\\.|(?!\1).)*)\1/g;
+  const lines = withoutDocstrings.split(/\r?\n/);
   lines.forEach((raw, i) => {
-    const hash = raw.indexOf("#");
+    const blanked = raw.replace(stringBlankRe, (s) => s.replace(/[^\n]/g, " "));
+    const hash = blanked.indexOf("#");
     if (hash === -1) return;
     // Skip shebangs and obvious URLs/fragments; keep everything else.
     if (i === 0 && raw.startsWith("#!")) return;
-    const text = normalize(raw.slice(hash + 1));
+    const text = normalize(blanked.slice(hash + 1));
     if (text.length < 3) return;
     units.push({ file, line: i + 1, source_kind: "comment", text });
   });
@@ -281,16 +304,11 @@ function extractPython(file: string, content: string, units: TextUnit[]): void {
   // path previously extracted only `#` comments + triple-quoted docstrings — so
   // an identical payload placed in an ordinary Python string constant (e.g. a
   // module-level `PROMPT = "…"` or an MCP tool `description="…"` kwarg) scanned
-  // as a silent false-clean, inconsistent with JS/TS. Blank out the already-
-  // extracted triple-quoted spans first (preserving newlines so line numbers are
-  // unchanged), then pull single/double-quoted spans line by line and push them
-  // through the same prose filter as JS/TS literals. No AST dep is available for
-  // Python, so this mirrors the existing regex approach; the downstream
-  // verb+addressee gate suppresses benign prose (as for `#` comments).
-  const withoutDocstrings = content.replace(
-    /("""|''')[\s\S]*?\1/g,
-    (span) => span.replace(/[^\n]/g, " "),
-  );
+  // as a silent false-clean, inconsistent with JS/TS. Pull single/double-quoted
+  // spans line by line from the docstring-blanked content and push them through
+  // the same prose filter as JS/TS literals. No AST dep is available for Python,
+  // so this mirrors the existing regex approach; the downstream verb+addressee
+  // gate suppresses benign prose (as for `#` comments).
   const stringRe = /("|')((?:\\.|(?!\1).)*)\1/g;
   withoutDocstrings.split(/\r?\n/).forEach((raw, i) => {
     let sm: RegExpExecArray | null;

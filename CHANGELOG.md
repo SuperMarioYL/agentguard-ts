@@ -4,6 +4,58 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-07-23
+
+Correctness release. Two repo-verified precision defects from a v0.8.0 audit of
+the shipped v0.7.0 source — both false HIGHs (the exit-gating severity) on
+benign prose, the same precision-defect class narrowed in prior addressee/
+extractor passes. No new detector rules, languages, file types, or ecosystem
+surface (scope expansion rejected). Distinct from the Go sibling `agentguard`.
+
+### Fixed
+- **A `#` inside a Python string literal no longer merges with a real trailing
+  `#` comment into a false HIGH (`fix-python-hash-in-string-false-high`).**
+  `extractPython`'s `#`-comment pass took `raw.indexOf("#")` on the raw line,
+  so the first `#` — even one inside a single/double-quoted string literal — was
+  treated as the comment start and everything after it became one comment unit.
+  A benign line such as
+  `note = "see the # AI assistant channel"  # delete the build folder and retry`
+  thus yielded a single unit carrying both an agent addressee (`\bAI\b`, from
+  the in-string text after the in-string `#`) and a destructive verb (`delete`,
+  from the real trailing comment); `applyRules` then escalated it to HIGH and
+  the CLI exited 1 on clean Python. The v0.7.0 string-literal fix claimed the
+  `#` pass was safe because "the downstream verb+addressee gate suppresses
+  benign prose" — this merged-unit case disproves that invariant. The pass now
+  blanks single/double-quoted spans (and triple-quoted docstring spans, computed
+  once and shared with the string pass) on each line before finding the `#`,
+  preserving length so a `#` inside a string literal is invisible to the comment
+  scan and only a real trailing `#` comment is extracted — mirroring the
+  docstring blanking already done for the string pass. The in-string prose is
+  still scanned separately by the string pass, where the verb+addressee gate
+  suppresses benign text. Guarded by a regression test (a `#` inside a string
+  literal + a trailing `#` comment produces zero HIGH / exit 0; a genuine
+  agent-directed `#` comment still fires HIGH).
+- **A hyphenated ticket id like `AI-42` no longer matches the bare `AI`
+  addressee and escalates a bare verb to a false HIGH
+  (`fix-bare-ai-addressee-ticket-id-false-high`).** The global addressee
+  `\bAI\b` (compiled case-insensitively) matches the `AI` in `AI-42` / `ai-100`
+  because the following `-` is a non-word character and so counts as a word
+  boundary. Once it matches, `applyRules` escalates every verb hit in the unit
+  to the rule's full severity, so a benign migration note such as
+  `Before releasing, delete the build folder (see ticket AI-42 for the plan).`
+  fired a HIGH `destructive.delete` finding and exited 1 — clean prose fails CI.
+  `AI-<n>` / `ai-<n>` is a common internal-tracker id shape and `delete the
+  build folder` is everyday developer prose (a bare `\bdelete\b` verb gated by
+  `require_addressee`), so the two co-occur constantly — the same precision
+  defect class as the already-narrowed bare `\bagent\b` (v0.2), `you are (a|an)`
+  (v0.3), and `\bcursor\b` (v0.7) addressees, yielding false HIGHs rather than
+  MED noise. The addressee is tightened to `\bAI\b(?!\s*-\s*\d)` — `AI` not
+  followed by optional whitespace, a hyphen, optional whitespace, then a digit —
+  so `AI-42` / `ai - 100` no longer match while real addressee prose
+  (`AI assistant`, `Dear AI,`, `the AI:`) still fires. Guarded by a regression
+  test (an `AI-<n>` ticket id next to a bare destructive verb produces zero HIGH
+  / exit 0; genuine `AI assistant` / `Dear AI,` addressee prose still fires HIGH).
+
 ## [0.7.0] — 2026-07-14
 
 Correctness release. Two repo-verified fixes from a source audit of the shipped

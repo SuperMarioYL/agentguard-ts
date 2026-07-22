@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache License 2.0" /></a>
   <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/release-v0.4.0-f59e0b.svg" alt="v0.4.0" /></a>
   <a href="./.github/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-node%2022-2ea043.svg" alt="CI Node 22" /></a>
   <img src="https://img.shields.io/badge/Coding%20Agent-ready-7c3aed.svg" alt="Coding Agent ready" />
@@ -261,11 +261,11 @@ are equally welcome.
 
 ## License
 
-[MIT](./LICENSE).
+[Apache-2.0](./LICENSE).
 
 ---
 
-<sub>MIT © 2026 SuperMarioYL ·
+<sub>Apache-2.0 © 2026 SuperMarioYL ·
 <a href="https://github.com/SuperMarioYL/agentguard-ts">AgentGuard</a></sub>
 
 ## Share this

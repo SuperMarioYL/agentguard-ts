@@ -21,7 +21,15 @@ version: 1
 # Addressee heuristic — does the prose talk *to* an AI agent rather than a human?
 # A verb hit that also matches one of these escalates to the rule's full severity.
 addressees:
-  - "\\bAI\\b"
+  # Only the agent-context "AI" — not a hyphenated tracker id. A bare `\bAI\b`
+  # also matches `AI-42` / `ai-100` (the following `-` is a non-word char, so it
+  # counts as a word boundary), so a benign migration note like "delete the build
+  # folder (see ticket AI-42 …)" matched the addressee and applyRules escalated
+  # a bare destructive verb to a false HIGH + exit 1 on clean prose. Same defect
+  # class as the narrowed bare `\bagent\b` / `\bcursor\b` / `you are (a|an)`
+  # addressees. The negative lookahead `(?!\s*-\s*\d)` excludes `AI-<digit>` while
+  # real addressee prose (`AI assistant`, `Dear AI,`, `the AI:`) still fires.
+  - "\\bAI\\b(?!\\s*-\\s*\\d)"
   - "\\bA\\.I\\.\\b"
   - "\\bassistant\\b"
   # Only AI-context "agent" — a bare \bagent\b also matches ssh-agent, user
