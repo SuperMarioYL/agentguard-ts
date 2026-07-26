@@ -9,6 +9,7 @@
  * files are worth opening.
  */
 
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import fg from "fast-glob";
 
@@ -102,6 +103,29 @@ export async function walk(
   opts: WalkOptions = {},
 ): Promise<string[]> {
   const includeDeps = opts.includeDeps ?? true;
+
+  // Fail loudly on a bad scan path BEFORE the glob. fast-glob runs below with
+  // suppressErrors: true, so a non-existent cwd, a path that points at a file,
+  // or an unreadable dir silently yields [] → scan() returns
+  // {filesScanned:0, unitsScanned:0, findings:[], exitCode:0} → renderReport
+  // prints "AgentGuard: clean" → a typo (./srcc), a permission error, or a file
+  // path produces a false clean + exit 0 in CI (a silent security failure).
+  // Stat the resolved root first; anything that is not an existing directory
+  // throws, which cli.ts's parseAsync().catch surfaces to stderr and exits 2.
+  // A genuinely empty project (a real dir with 0 scannable files) still falls
+  // through to the glob and returns [] + exit 0 — the fix distinguishes a bad
+  // path (error, exit 2) from a genuinely empty project (clean, exit 0).
+  const resolved = path.resolve(rootDir);
+  const stats = await stat(resolved).catch(() => {
+    throw new Error(
+      "scan path does not exist or is not a directory: " + resolved,
+    );
+  });
+  if (!stats.isDirectory()) {
+    throw new Error(
+      "scan path does not exist or is not a directory: " + resolved,
+    );
+  }
 
   // Always-noise everywhere + the project's own build output (root-anchored, so it
   // does NOT swallow dependency code under node_modules/<pkg>/dist|build|.next|coverage).

@@ -30,7 +30,15 @@ addressees:
   # addressees. The negative lookahead `(?!\s*-\s*\d)` excludes `AI-<digit>` while
   # real addressee prose (`AI assistant`, `Dear AI,`, `the AI:`) still fires.
   - "\\bAI\\b(?!\\s*-\\s*\\d)"
-  - "\\bA\\.I\\.\\b"
+  # The dotted "A.I." addressee. The old `\bA\.I\.\b` was dead: the trailing
+  # `\b` after a literal `.` only holds when the next char is a WORD char, which
+  # is never the case in real addressee prose ("A.I. assistant", "Dear A.I.,",
+  # "A.I.:"), so it matched ZERO real addressee phrases and an "A.I."-addressed
+  # exfil payload fired only at downgraded MED (CI exit 0 on a genuine exfil).
+  # It also false-matched the "A.I." prefix of "A.I.D.S." (the `\b` holds before
+  # the word char "D"). The negative lookahead `(?![A-Za-z])` matches real
+  # addressee prose (escalating to HIGH) while excluding "A.I.D.S.".
+  - "\\bA\\.I\\.(?![A-Za-z])"
   - "\\bassistant\\b"
   # Only AI-context "agent" — a bare \bagent\b also matches ssh-agent, user
   # agent, build agent, etc., which are not AI addressees and cause false HIGHs.
