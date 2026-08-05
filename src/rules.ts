@@ -196,6 +196,32 @@ export function applyRules(units: TextUnit[], rules: Rule[]): Finding[] {
  */
 const CROSS_LINE_WINDOW = 3;
 
+/**
+ * A directly-addressed agent opening a body line — a vocative greeting
+ * ("Dear AI assistant,", "hey cursor,") that talks TO an agent, so it can
+ * establish an addressee for a following bare-verb instruction. Tight by
+ * design: the greeting must directly precede an agent noun (only whitespace /
+ * commas between), so a descriptive "Dear team, … the AI assistant …" line is
+ * NOT a carry source.
+ */
+const CARRY_VOCATIVE_RE =
+  /^\s*(?:dear|hey|hi|hello|attention)\b[\s,]{0,12}(?:ai|assistant|agents?|models?|llms?|bots?|claude|cursor|copilot|chatgpt|codex|gpt-?\d)\b/i;
+
+/**
+ * Does a preceding line TALK TO an agent (so it can carry an addressee onto a
+ * following bare verb), or merely talk ABOUT one (so it must not)? A heading
+ * is a carry source — the documented "# Dear AI assistant," case, where the
+ * whole section is agent-directed. A vocative body line ("Dear AI assistant,")
+ * is a carry source. A descriptive body-line mention ("the AI assistant helps
+ * with code review") is NOT: it names an agent in passing, which before v0.11.0
+ * escalated a following bare "Delete the build folder" verb to a false HIGH +
+ * exit 1 on clean prose. (v0.11.0
+ * fix-cross-line-carry-benign-body-mention-false-high.)
+ */
+function isCarrySourceLine(text: string): boolean {
+  return text.startsWith("#") || CARRY_VOCATIVE_RE.test(text);
+}
+
 function findCarriedAddressee(
   units: TextUnit[],
   index: number,
@@ -229,7 +255,14 @@ function findCarriedAddressee(
     // heading boundary, so stop after checking it.
     const isHeading = prev.text.startsWith("#");
     const hit = firstMatch(addrRes, prev.text);
-    if (hit) return hit;
+    // v0.11.0: only carry the addressee from a line that TALKS TO an agent
+    // (a heading or a vocative), never from a descriptive body-line mention
+    // that merely names one — otherwise benign "the AI assistant helps with
+    // code review" prose escalates a following bare "Delete the build folder"
+    // verb to a false HIGH + exit 1 on clean prose. A non-carry-source body
+    // line is skipped (not a heading, so the scope does not break), letting the
+    // look-back still reach a genuine heading/vocative addressee further up.
+    if (hit && isCarrySourceLine(prev.text)) return hit;
     if (isHeading) break;
   }
   return null;

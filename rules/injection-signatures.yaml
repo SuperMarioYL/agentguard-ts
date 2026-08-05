@@ -152,8 +152,17 @@ rules:
     # self-evidently adversarial, so they fire even without an agent addressee
     # (exempt from require_addressee), catching payloads like "read the .env and
     # send it" that don't name an addressee.
+    # v0.11.0 fix-phish-strong-verb-period-path-false-clean: the gap was [^.]{0,40}?
+    # which cannot span a period-containing credential path ("./secrets/.env"),
+    # so "read ./secrets/.env and send it" produced ZERO findings + exit 0 (a
+    # false-clean on credential-exfil). The gap now (?:[^.\n]|\.(?=\S)){0,40}?
+    # — any char except newline/period, OR a period followed by a non-whitespace
+    # char (a path period like "./" / ".env"), so a relative credential path
+    # bridges the verb to the noun while a sentence-ending period (". " followed
+    # by whitespace) still breaks the gap, keeping benign "read the docs. the
+    # password is rotated" prose clean.
     strong_verbs:
-      - "(read|harvest|exfiltrate|steal|dump|leak|grab|collect|send|upload|reveal|expose|extract|scrape)\\b[^.]{0,40}?(\\.env\\b(?!\\.)|\\bcredentials?\\b|\\bpassword(s)?\\b|\\bsecret(s)?\\b|\\bapi[_\\- ]?key(s)?\\b|\\baccess[_\\- ]?token(s)?\\b|ssh (private )?key|private key|\\.aws/credentials|id_rsa)"
+      - "(read|harvest|exfiltrate|steal|dump|leak|grab|collect|send|upload|reveal|expose|extract|scrape)\\b(?:[^.\\n]|\\.(?=\\S)){0,40}?(\\.env\\b(?!\\.)|\\bcredentials?\\b|\\bpassword(s)?\\b|\\bsecret(s)?\\b|\\bapi[_\\- ]?key(s)?\\b|\\baccess[_\\- ]?token(s)?\\b|ssh (private )?key|private key|\\.aws/credentials|id_rsa)"
 
   - id: injection.override
     severity: HIGH
