@@ -34,12 +34,12 @@
     {
       "title": { "zh": "不乱喊狼来了——干净的依赖零误报", "en": "No crying wolf — clean deps stay quiet" },
       "body": {
-        "zh": "「delete」「.env」这些词在普通开发文档里到处都是，普通关键词扫描会把它们全报成危险。AgentGuard 只在一段话明确在对你的 AI / agent 说话时才升级——对着人说的普通文档直接跳过。结果：一份干净的 README 产出零噪音。",
-        "en": "'delete' and '.env' show up in ordinary dev docs all the time, and a naive keyword scan flags them all. AgentGuard only escalates when a sentence is clearly addressing your AI / agent — ordinary prose aimed at humans is skipped. The result: a clean README produces zero noise."
+        "zh": "「delete」「.env」这些词在普通开发文档里到处都是，普通关键词扫描会把它们全报成危险。AgentGuard 只在一段话明确在对你的 AI / agent 说话时才升级——对着人说的普通文档直接跳过；就算把收件人和指令拆到不同行里藏着，也照样抓得到。结果：一份干净的 README 产出零噪音。",
+        "en": "'delete' and '.env' show up in ordinary dev docs all the time, and a naive keyword scan flags them all. AgentGuard only escalates when a sentence is clearly addressing your AI / agent — ordinary prose aimed at humans is skipped, and even a payload that splits the addressee and the instruction across separate lines is still caught. The result: a clean README produces zero noise."
       },
       "chips": [
         "› 区分「对人」还是「对你的 agent」",
-        "› 干净的依赖 = 零噪音"
+        "› 跨行藏起来的指令也抓得到"
       ]
     },
     {
