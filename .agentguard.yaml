@@ -1,0 +1,30 @@
+# .agentguard.yaml — AgentGuard project config.
+#
+# Per-project rule overrides so a team can scope rule enablement and severity
+# to their monorepo WITHOUT forking the bundled rules/injection-signatures.yaml.
+# AgentGuard loads this file from the scan root automatically (or via
+# `agentguard scan --config <path>`); an absent or empty file means "use the
+# bundled defaults" (no behavior change), and a malformed file is ignored in
+# the safe direction (the bundled defaults fire, never a silent disable).
+#
+# Schema:
+#   disable_rules:        [rule_id, ...]              # drop these rules entirely
+#   severity_overrides:    { rule_id: HIGH|MED|LOW }  # change a rule's severity
+#
+# This is AgentGuard's OWN config (the agentguard-ts repo scanning itself): all
+# bundled rules stay enabled at their shipped severity, so scanning this repo
+# behaves exactly as a fresh `npx agentguard scan .` would. The entries below
+# are commented examples of how a downstream project would opt out.
+
+disable_rules: []
+# Example: a project whose docs legitimately walk through credential rotation
+# in agent-addressed prose could quiet the phish.credential rule:
+# disable_rules:
+#   - phish.credential
+
+severity_overrides: {}
+# Example: downgrade destructive.delete to MED for a docs-heavy repo where
+# "delete the build folder" is everyday prose, keeping the HIGH exit gate for
+# exfil.network and injection.override:
+# severity_overrides:
+#   destructive.delete: MED

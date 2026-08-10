@@ -32,12 +32,21 @@ program
   .option("--json", "emit machine-readable JSON instead of the terminal report")
   .option("--ci", "terse, log-stable output for CI pipelines")
   .option("--no-deps", "scan only the project, skip node_modules / dependencies")
-  .action(async (path: string, opts: { json?: boolean; ci?: boolean; deps?: boolean }) => {
-    const result = await scan(path, {
-      json: opts.json,
-      ci: opts.ci,
-      includeDeps: opts.deps,
-    });
+  .option(
+    "--config <path>",
+    "path to a .agentguard.yaml project config (default: auto-discover at scan root)",
+  )
+  .action(
+    async (
+      path: string,
+      opts: { json?: boolean; ci?: boolean; deps?: boolean; config?: string },
+    ) => {
+      const result = await scan(path, {
+        json: opts.json,
+        ci: opts.ci,
+        includeDeps: opts.deps,
+        configPath: opts.config,
+      });
 
     const out = opts.json
       ? renderJson(result)

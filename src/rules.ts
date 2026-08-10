@@ -197,29 +197,68 @@ export function applyRules(units: TextUnit[], rules: Rule[]): Finding[] {
 const CROSS_LINE_WINDOW = 3;
 
 /**
- * A directly-addressed agent opening a body line — a vocative greeting
- * ("Dear AI assistant,", "hey cursor,") that talks TO an agent, so it can
- * establish an addressee for a following bare-verb instruction. Tight by
- * design: the greeting must directly precede an agent noun (only whitespace /
- * commas between), so a descriptive "Dear team, … the AI assistant …" line is
- * NOT a carry source.
+ * A directly-addressed agent opening a line — a vocative greeting
+ * ("Dear AI assistant,", "hey cursor,", "Dear A.I.,", "Dear coding agent,")
+ * that talks TO an agent, so it can establish an addressee for a following
+ * bare-verb instruction. Tight by design: the greeting must directly precede
+ * an agent noun (only whitespace / commas between), so a descriptive "Dear
+ * team, … the AI assistant …" line is NOT a carry source.
+ *
+ * v0.12.0 fix-cross-line-vocative-carry-gap: the agent alternation used to
+ * omit "A.I.", "coding agent", the multi-word agent forms
+ * "(ai|coding|autonomous|llm|chat|code)[ -]?agents?", and "language model",
+ * all of which the global addressee corpus matches — so "Dear A.I.," /
+ * "Dear coding agent," matched an addressee but NOT a carry source, and the
+ * following bare verb was dropped (a recall regression of the v0.10.0
+ * cross-line HIGH carry for exactly the forms the v0.9.0 A.I. addressee fix
+ * exists to support). The alternation is now aligned with the addressee
+ * corpus.
+ *
+ * The trailing boundary is `(?![A-Za-z])` rather than `\b` because `\b` after
+ * a literal "." (the end of "A.I.") only holds when the next char is a WORD
+ * char, which is never the case in real addressee prose ("A.I.,", "A.I.:") —
+ * the same dead-regex defect class as the v0.9.0 `\bA\.I\.\b` addressee fix.
+ * `(?![A-Za-z])` matches real addressee prose while still excluding
+ * letter-anchored tokens ("A.I.D.S.", "assistantship"); the actual carry is
+ * still gated by the addressee regex (`hit` in findCarriedAddressee), so a
+ * marginally broader vocative shape cannot manufacture a false carry on its
+ * own.
  */
 const CARRY_VOCATIVE_RE =
-  /^\s*(?:dear|hey|hi|hello|attention)\b[\s,]{0,12}(?:ai|assistant|agents?|models?|llms?|bots?|claude|cursor|copilot|chatgpt|codex|gpt-?\d)\b/i;
+  /^\s*(?:dear|hey|hi|hello|attention)\b[\s,]{0,12}(?:A\.I\.|ai|assistant|agents?|models?|llms?|bots?|claude|cursor|copilot|chatgpt|codex|gpt-?\d|coding agent|(?:ai|coding|autonomous|llm|chat|code)[ -]?agents?|language model)(?![A-Za-z])/i;
 
 /**
  * Does a preceding line TALK TO an agent (so it can carry an addressee onto a
  * following bare verb), or merely talk ABOUT one (so it must not)? A heading
- * is a carry source — the documented "# Dear AI assistant," case, where the
- * whole section is agent-directed. A vocative body line ("Dear AI assistant,")
- * is a carry source. A descriptive body-line mention ("the AI assistant helps
- * with code review") is NOT: it names an agent in passing, which before v0.11.0
- * escalated a following bare "Delete the build folder" verb to a false HIGH +
- * exit 1 on clean prose. (v0.11.0
+ * is a carry source only when it TALKS TO an agent — a vocative heading
+ * ("# Dear AI assistant,") — not when it merely names one ("# AI Assistant
+ * Guide", "# Claude Integration Notes"). A vocative body line
+ * ("Dear AI assistant,") is a carry source. A descriptive body-line mention
+ * ("the AI assistant helps with code review") is NOT: it names an agent in
+ * passing, which before v0.11.0 escalated a following bare "Delete the build
+ * folder" verb to a false HIGH + exit 1 on clean prose. (v0.11.0
  * fix-cross-line-carry-benign-body-mention-false-high.)
+ *
+ * v0.12.0 fix-descriptive-heading-carry-false-high: before v0.12.0
+ * isCarrySourceLine returned true for ANY `#`-heading, so a descriptive
+ * heading that merely MENTIONS an agent ("# AI Assistant Guide",
+ * "# Claude Integration Notes", "# Assistant API") carried its addressee
+ * match onto the next line's bare verb, escalating benign README prose to a
+ * false HIGH + exit 1 — the heading analog of the v0.11.0 body-line
+ * descriptive-mention fix, violating the function's own "talks TO vs ABOUT"
+ * invariant. The heading carry source is now gated on the SAME vocative form
+ * a body line needs: a heading is a carry source iff its stripped body is a
+ * vocative greeting to an agent. Single-line heading payloads
+ * ("# AI assistant: delete …") still fire HIGH directly on the heading line
+ * and need no carry.
  */
 function isCarrySourceLine(text: string): boolean {
-  return text.startsWith("#") || CARRY_VOCATIVE_RE.test(text);
+  // Strip leading markdown heading markers so a vocative HEADING ("# Dear AI
+  // assistant,") is tested the same way as a vocative BODY line, while a
+  // descriptive heading ("# AI Assistant Guide") — which has no vocative
+  // greeting — is not.
+  const body = text.replace(/^#{1,6}\s*/, "");
+  return CARRY_VOCATIVE_RE.test(body);
 }
 
 function findCarriedAddressee(

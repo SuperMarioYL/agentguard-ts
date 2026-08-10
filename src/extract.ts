@@ -200,6 +200,22 @@ function collectStringLiterals(
     return;
   }
 
+  // A top-level JS directive-prologue string (e.g. "AI assistant: delete …" as
+  // the FIRST statement of a module/function) is parsed by babel as a
+  // `Directive` node whose `value` is a `DirectiveLiteral`, stored in
+  // `ast.program.directives` — NOT as a `StringLiteral` in
+  // `ast.program.body`. Without this branch the DirectiveLiteral falls through
+  // the type-dispatch and its `.value` string is never pushed, so the payload
+  // is silently dropped (exit 0, no finding) while the same payload placed
+  // AFTER a non-directive statement parses as a plain StringLiteral and fires
+  // HIGH. Same defect class as the v0.6.0 JSXText fix; the node is already
+  // reached via the `directives` key recursion above, so no traversal change
+  // is needed — only the type-dispatch branch.
+  if (obj.type === "DirectiveLiteral" && typeof obj.value === "string") {
+    pushLiteral(obj.value, file, line, units);
+    return;
+  }
+
   // JSX element text (`<div>Dear coding agent: ...</div>`) is a JSXText node —
   // neither a StringLiteral nor a TemplateLiteral — so without this branch a
   // payload written as visible JSX text was never extracted and scanned as a
