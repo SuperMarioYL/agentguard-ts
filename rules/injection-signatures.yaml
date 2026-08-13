@@ -161,8 +161,16 @@ rules:
     # bridges the verb to the noun while a sentence-ending period (". " followed
     # by whitespace) still breaks the gap, keeping benign "read the docs. the
     # password is rotated" prose clean.
+    # v0.13.0 fix-phish-strong-verb-env-lookahead-false-clean: the .env noun arm
+    # was \.env\b(?!\.) — the redundant (?!\.) negative lookahead FALSELY EXCLUDES
+    # addressee-free ".env." / ".env.local" credential payloads (the char after
+    # .env is "."), producing a false-clean on exactly the credential surface the
+    # rule targets. The \b already excludes ".environment" / ".envrc" (v→i / v→r
+    # is word→word, no boundary), so the lookahead adds nothing but the
+    # false-clean. Dropped to \.env\b so a bare .env followed by "." / ".local"
+    # still matches. Distinct from the v0.11.0 period-path gap fix above.
     strong_verbs:
-      - "(read|harvest|exfiltrate|steal|dump|leak|grab|collect|send|upload|reveal|expose|extract|scrape)\\b(?:[^.\\n]|\\.(?=\\S)){0,40}?(\\.env\\b(?!\\.)|\\bcredentials?\\b|\\bpassword(s)?\\b|\\bsecret(s)?\\b|\\bapi[_\\- ]?key(s)?\\b|\\baccess[_\\- ]?token(s)?\\b|ssh (private )?key|private key|\\.aws/credentials|id_rsa)"
+      - "(read|harvest|exfiltrate|steal|dump|leak|grab|collect|send|upload|reveal|expose|extract|scrape)\\b(?:[^.\\n]|\\.(?=\\S)){0,40}?(\\.env\\b|\\bcredentials?\\b|\\bpassword(s)?\\b|\\bsecret(s)?\\b|\\bapi[_\\- ]?key(s)?\\b|\\baccess[_\\- ]?token(s)?\\b|ssh (private )?key|private key|\\.aws/credentials|id_rsa)"
 
   - id: injection.override
     severity: HIGH

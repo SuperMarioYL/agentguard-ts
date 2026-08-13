@@ -441,17 +441,33 @@ function extractYamlComments(
  * Index of the `#` that begins a YAML comment on a line, or -1. Per the YAML
  * spec a `#` starts a comment only at the line start or when preceded by
  * whitespace; a `#` embedded in a token (e.g. a URL fragment `a#b` or a
- * color `#fff`) is literal and not a comment. This is a lightweight,
- * intentionally over-inclusive heuristic (it does not track quotes) — a `#`
- * inside a quoted scalar that is preceded by a space may be re-scanned as a
- * comment, but that scalar is already scanned separately, so the effect is a
- * harmless duplicate rather than a miss; the downstream verb+addressee gate
- * suppresses benign prose.
+ * color `#fff`) is literal and not a comment. A `#` inside a single/double-
+ * quoted scalar is ALSO literal, so quoted spans are blanked (preserving
+ * length) before the scan — mirroring the v0.8.0 extractPython `#`-comment
+ * string-blanking.
+ *
+ * fix-yaml-hash-in-string-false-high (v0.13.0): previously this pass did NOT
+ * track quotes, so a `#` inside a quoted YAML string value that was preceded
+ * by a space (e.g. `name: "AI # assistant"`) was treated as the comment
+ * start. The extracted comment then ran from the in-string `#` to the end of
+ * line, merging the in-string addressee (`AI assistant`, from text after the
+ * in-string `#`) with a real trailing `#` comment's verb (`delete`) into one
+ * unit, which applyRules escalated to a false HIGH + exit 1 on benign YAML.
+ * The v0.8.0 Python `#`-comment pass was made string-aware but the YAML pass
+ * was not; this closes that gap. The in-string prose is still scanned
+ * separately by extractStructured (the scalar value), where the
+ * verb+addressee gate suppresses benign text.
  */
 function yamlCommentStart(line: string): number {
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] !== "#") continue;
-    if (i === 0 || line[i - 1] === " " || line[i - 1] === "\t") return i;
+  // Blank single/double-quoted scalar spans (preserving length) so a `#`
+  // inside a quoted string is invisible to the comment scan — a `#` there is a
+  // literal char, not a comment start. Mirrors the v0.8.0 extractPython
+  // string-blanking. (fix-yaml-hash-in-string-false-high)
+  const stringBlankRe = /("|')((?:\\.|(?!\1).)*)\1/g;
+  const blanked = line.replace(stringBlankRe, (s) => s.replace(/[^\n]/g, " "));
+  for (let i = 0; i < blanked.length; i++) {
+    if (blanked[i] !== "#") continue;
+    if (i === 0 || blanked[i - 1] === " " || blanked[i - 1] === "\t") return i;
   }
   return -1;
 }

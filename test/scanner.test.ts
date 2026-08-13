@@ -1717,27 +1717,27 @@ test("v0.11.0 fix-phish: the canonical 'read the .env and send it' (no period in
 // v0.10.0 fix-stale-package-version-not-bumped: the v0.9.0 ship commit never
 // bumped package.json's `version` (still "0.8.0"), so --version / scan --json
 // reported 0.8.0 for a v0.9.0/v0.10.0 release — re-breaking the --json/CI path
-// v0.3.0's fix-json-version-stale kept correct. package.json is now 0.12.0 and
+// v0.3.0's fix-json-version-stale kept correct. package.json is now 0.13.0 and
 // the reported version is asserted against the release, not just internal
 // consistency (the v0.3.0 test only checked parsed.version === pkg.version).
 // ---------------------------------------------------------------------------
 
-test("v0.10.0 fix-stale-version: --json / --version report 0.12.0 (matches the release, not stale 0.8.0)", async () => {
+test("v0.10.0 fix-stale-version: --json / --version report 0.13.0 (matches the release, not stale 0.8.0)", async () => {
   const { readFile } = await import("node:fs/promises");
   const pkg = JSON.parse(
     await readFile(path.join(here, "..", "package.json"), "utf8"),
   ) as { version: string };
 
-  assert.equal(VERSION, "0.12.0", "VERSION is bumped to the v0.12.0 release");
-  assert.equal(pkg.version, "0.12.0", "package.json version is 0.12.0");
+  assert.equal(VERSION, "0.13.0", "VERSION is bumped to the v0.13.0 release");
+  assert.equal(pkg.version, "0.13.0", "package.json version is 0.13.0");
 
   await withJqwikOnly(async (dir) => {
     const result = await scan(dir, { includeDeps: false });
     const parsed = JSON.parse(renderJson(result)) as { version: string };
     assert.equal(
       parsed.version,
-      "0.12.0",
-      "scan --json reports 0.12.0 (not a stale 0.8.0)",
+      "0.13.0",
+      "scan --json reports 0.13.0 (not a stale 0.8.0)",
     );
   });
 
@@ -1750,7 +1750,7 @@ test("v0.10.0 fix-stale-version: --json / --version report 0.12.0 (matches the r
   );
   assert.equal(
     res.stdout.trim(),
-    "0.12.0",
-    "agentguard --version prints 0.12.0",
+    "0.13.0",
+    "agentguard --version prints 0.13.0",
   );
 });

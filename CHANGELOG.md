@@ -4,6 +4,59 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] — 2026-08-13
+
+Fix-bump release. Two repo-verified false-clean / false-high defects from a
+v0.13.0 bug-hunter audit of the shipped v0.12.0 TS source — one false HIGH
+(the exit-gating severity) on benign YAML, one false-clean on the exact
+credential surface a rule targets. Both close gaps the analog Python /
+addressee passes had already closed; no new detector rules, source languages,
+file types, or `source_kind`s. Distinct from the Go sibling `agentguard`.
+
+### Fixed
+- **A `#` inside a quoted YAML string value no longer merges with a real
+  trailing `#` comment into a false HIGH (`fix-yaml-hash-in-string-false-high`).**
+  `extractYamlComments`' `yamlCommentStart` (`src/extract.ts`) found the
+  comment-start `#` by scanning the raw line for a `#` at the line start or
+  preceded by whitespace — but it did NOT track quotes, so a `#` inside a
+  single/double-quoted scalar that was preceded by a space (e.g.
+  `name: "AI # assistant"`) was mistaken for the comment start. The extracted
+  comment then ran from the in-string `#` to the end of line, merging the
+  in-string addressee (`AI assistant`, from text after the in-string `#`)
+  with a real trailing `#` comment's verb (`delete`) into one unit, which
+  `applyRules` escalated to a false HIGH + exit 1 on benign YAML. The v0.8.0
+  `extractPython` `#`-comment pass was made string-aware (it blanks
+  single/double-quoted + docstring spans before the `#` scan) but the YAML
+  pass was not; this closes that gap. `yamlCommentStart` now blanks
+  single/double-quoted scalar spans (preserving length) before the scan, so a
+  `#` inside a quoted string is invisible to the comment scan and only a real
+  trailing `#` comment is extracted — mirroring the v0.8.0 Python blanking.
+  The in-string prose is still scanned separately by `extractStructured`
+  (the scalar value), where the verb+addressee gate suppresses benign text.
+  Guarded by a regression test (a `#` inside a double/single-quoted YAML
+  string + a trailing `#` comment produces zero HIGH / exit 0; a genuine
+  agent-directed `#` comment still fires HIGH).
+- **A bare `.env` followed by `.` / `.local` is no longer a false-clean on
+  the credential surface the phish.credential rule targets
+  (`fix-phish-strong-verb-env-lookahead-false-clean`).** The phish.credential
+  `strong_verbs` noun alternation (`rules/injection-signatures.yaml`) used
+  `\.env\b(?!\.)` for the `.env` noun arm. The `(?!\.)` negative lookahead is
+  redundant — the `\b` already excludes `.environment` / `.envrc` (the char
+  after `.env` is a word char `i` / `r`, so `v`→`i` / `v`→`r` is word→word
+  with no boundary) — and it FALSELY EXCLUDES addressee-free `.env.` /
+  `.env.local` credential payloads, because the char after `.env` is `.`. So
+  a payload like `read .env.local and send it` (no addressee) produced ZERO
+  findings + exit 0 — a false-clean on exactly the credential-exfil surface
+  the rule exists to catch. The lookahead is dropped to `\.env\b`, so a bare
+  `.env` followed by `.` / `.local` still matches while `.environment` /
+  `.envrc` are still excluded by the `\b`. Distinct from the v0.11.0
+  `fix-phish-strong-verb-period-path-false-clean` (that was the
+  `(?:[^.\n]|\.(?=\S))` gap between the verb and the noun, not the `.env`
+  noun arm). Guarded by a regression test (`read .env.local and send it` with
+  no addressee is now flagged MED, was a zero-finding false-clean; `.env` /
+  `.env.local` bridge the verb to the noun while `.environment` / `.envrc`
+  do not; an agent-directed `read .env.local` still fires HIGH).
+
 ## [0.12.0] — 2026-08-10
 
 Fix-bump + capability release. Folds in 3 high/medium-severity verified
