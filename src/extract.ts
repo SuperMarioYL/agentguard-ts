@@ -427,24 +427,183 @@ function extractYamlComments(
   content: string,
   units: TextUnit[],
 ): void {
-  const lines = content.split(/\r?\n/);
-  lines.forEach((raw, i) => {
-    const hash = yamlCommentStart(raw);
+  // Blank single/double-quoted YAML scalar spans — INCLUDING multi-line quoted
+  // scalars — before the per-line `#` scan, so a `#` inside a quoted string is
+  // invisible to the comment scan (a `#` there is a literal char of the scalar,
+  // not a comment start). The scalar value itself is still scanned separately
+  // by extractStructured; this pass only finds real `#` comments.
+  const blanked = blankYamlQuoted(content);
+  const lines = blanked.split(/\r?\n/);
+  lines.forEach((line, i) => {
+    const hash = yamlCommentStart(line);
     if (hash === -1) return;
-    const text = normalize(raw.slice(hash + 1));
+    const text = normalize(line.slice(hash + 1));
     if (text.length < 3) return;
     units.push({ file, line: i + 1, source_kind: "yaml", text });
   });
 }
 
 /**
- * Index of the `#` that begins a YAML comment on a line, or -1. Per the YAML
- * spec a `#` starts a comment only at the line start or when preceded by
- * whitespace; a `#` embedded in a token (e.g. a URL fragment `a#b` or a
- * color `#fff`) is literal and not a comment. A `#` inside a single/double-
- * quoted scalar is ALSO literal, so quoted spans are blanked (preserving
- * length) before the scan — mirroring the v0.8.0 extractPython `#`-comment
- * string-blanking.
+ * Return `content` with every char inside a single/double-quoted YAML scalar
+ * (including the quote chars) replaced by a space, preserving newlines and
+ * length, so quoted spans are invisible to the `#`-comment scan. Mirrors the
+ * v0.8.0 extractPython string-blanking, but is stateful ACROSS lines.
+ *
+ * fix-yaml-multiline-quoted-hash-duplicate (v0.14.0): the v0.13.0 blanker was
+ * the per-line regex `("|')((?:\\.|(?!\1).)*)\1` inside yamlCommentStart, which
+ * cannot match a quoted scalar that opens on one line and closes on a later
+ * line (the `.` / `(?!\1).` exclude newline). For a properly-indented
+ * multi-line quoted YAML scalar whose continuation line begins with `# ...`,
+ * the `#` is a literal char of the string (not a comment), but the per-line
+ * blanker had no quote state across lines, so it treated the `#` as a comment
+ * start and emitted a spurious `yaml` unit from `#` to EOL — duplicating the
+ * findings the scalar value already produced (e.g. TWO destructive.delete HIGH
+ * findings for one payload, inflating summary.HIGH). This pass tracks an open
+ * quote across lines so continuation lines of a multi-line quoted scalar are
+ * blanked too.
+ *
+ * Value-position guard: a quote only OPENS a (possibly multi-line) scalar when
+ * it is in a value position — the first non-whitespace char on the line, or
+ * immediately preceded by `:` (a mapping value). This stops a stray apostrophe
+ * or quote in prose (`# it's ok`, `# see "docs"`) from opening a "multi-line
+ * scalar" that swallows following lines (which would hide a later real `#`
+ * comment — a false clean). Same-line quoted pairs in any position are still
+ * blanked via findSameLineQuoteClose (matching the prior per-line regex).
+ */
+function blankYamlQuoted(content: string): string {
+  const out: string[] = [];
+  let i = 0;
+  // The open quote char of an unclosed (possibly multi-line) quoted scalar, or
+  // null when not inside one. Tracked across lines.
+  let quote: '"' | "'" | null = null;
+  // Last non-whitespace char seen on the current line while NOT inside a quote.
+  let prevSignificant = "";
+  // True while only whitespace has been seen on the current line (outside a quote).
+  let atLineStart = true;
+
+  while (i < content.length) {
+    const ch = content[i] ?? "";
+
+    if (quote !== null) {
+      // Inside an open quoted scalar.
+      if (quote === '"' && ch === "\\") {
+        // Escaped char in a double-quoted scalar: backslash + next are literal.
+        out.push(" ", " ");
+        i += 2;
+        continue;
+      }
+      if (quote === "'" && ch === "'" && (content[i + 1] ?? "") === "'") {
+        // Escaped `''` in a single-quoted scalar: both are a literal `'`.
+        out.push(" ", " ");
+        i += 2;
+        continue;
+      }
+      if (ch === quote) {
+        out.push(" "); // closing quote
+        quote = null;
+        prevSignificant = "";
+        atLineStart = false;
+        i += 1;
+        continue;
+      }
+      // Literal scalar content; preserve newlines so line structure survives.
+      out.push(ch === "\n" ? "\n" : " ");
+      if (ch === "\n") {
+        atLineStart = true;
+        prevSignificant = "";
+      }
+      i += 1;
+      continue;
+    }
+
+    // Not inside a quoted scalar.
+    if (ch === "\n") {
+      out.push("\n");
+      atLineStart = true;
+      prevSignificant = "";
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      const isValuePos = atLineStart || prevSignificant === ":";
+      if (isValuePos) {
+        // Open a (possibly multi-line) quoted scalar.
+        out.push(" ");
+        quote = ch;
+        atLineStart = false;
+        prevSignificant = "";
+        i += 1;
+        continue;
+      }
+      // Non-value-position quote: blank the same-line pair if it closes on
+      // this line (mirrors the prior per-line regex). If it does not close on
+      // this line, leave it raw — an unclosed mid-prose quote is not a scalar.
+      const closeIdx = findSameLineQuoteClose(content, i, ch);
+      if (closeIdx === -1) {
+        out.push(ch);
+        prevSignificant = ch;
+        atLineStart = false;
+        i += 1;
+        continue;
+      }
+      for (let k = i; k <= closeIdx; k++) {
+        out.push(content[k] === "\n" ? "\n" : " ");
+      }
+      i = closeIdx + 1;
+      prevSignificant = ch;
+      atLineStart = false;
+      continue;
+    }
+    // Plain char.
+    out.push(ch);
+    if (ch !== " " && ch !== "\t") {
+      prevSignificant = ch;
+      atLineStart = false;
+    }
+    i += 1;
+  }
+  return out.join("");
+}
+
+/**
+ * Index of the closing quote for a scalar opened at `openIdx` (quote char
+ * `quote`), scanning only the SAME line (a newline ends the search and returns
+ * -1), respecting `\"` escapes (double) and `''` escapes (single). Used by
+ * blankYamlQuoted to blank same-line non-value-position quoted pairs.
+ */
+function findSameLineQuoteClose(
+  content: string,
+  openIdx: number,
+  quote: string,
+): number {
+  let j = openIdx + 1;
+  while (j < content.length) {
+    const c = content[j] ?? "";
+    if (c === "\n") return -1;
+    if (quote === '"' && c === "\\") {
+      j += 2;
+      continue;
+    }
+    if (quote === "'" && c === "'" && (content[j + 1] ?? "") === "'") {
+      j += 2;
+      continue;
+    }
+    if (c === quote) return j;
+    j += 1;
+  }
+  return -1;
+}
+
+/**
+ * Index of the `#` that begins a YAML comment on a (quote-blanked) line, or
+ * -1. Per the YAML spec a `#` starts a comment only at the line start or when
+ * preceded by whitespace; a `#` embedded in a token (e.g. a URL fragment `a#b`
+ * or a color `#fff`) is literal and not a comment. The line passed in is
+ * expected to have already been quote-blanked by blankYamlQuoted (so a `#`
+ * inside a single/double-quoted scalar — including a multi-line quoted scalar's
+ * continuation line — is already a space and invisible here). The per-line
+ * regex blanking is retained as a defensive no-op on already-blanked input and
+ * for direct callers; the multi-line case is handled by blankYamlQuoted.
  *
  * fix-yaml-hash-in-string-false-high (v0.13.0): previously this pass did NOT
  * track quotes, so a `#` inside a quoted YAML string value that was preceded
@@ -457,12 +616,19 @@ function extractYamlComments(
  * was not; this closes that gap. The in-string prose is still scanned
  * separately by extractStructured (the scalar value), where the
  * verb+addressee gate suppresses benign text.
+ *
+ * fix-yaml-multiline-quoted-hash-duplicate (v0.14.0): the v0.13.0 per-line
+ * regex could not span a newline, so a `#` on a continuation line of a
+ * multi-line quoted scalar was still mis-detected as a comment start (a
+ * spurious `yaml` unit + duplicate findings). blankYamlQuoted now blanks
+ * multi-line quoted spans before this scan; this function's regex remains for
+ * the single-line case and as a defensive re-blank.
  */
 function yamlCommentStart(line: string): number {
   // Blank single/double-quoted scalar spans (preserving length) so a `#`
   // inside a quoted string is invisible to the comment scan — a `#` there is a
-  // literal char, not a comment start. Mirrors the v0.8.0 extractPython
-  // string-blanking. (fix-yaml-hash-in-string-false-high)
+  // literal char, not a comment start. On input already blanked by
+  // blankYamlQuoted this is a no-op; it remains for direct callers and defense.
   const stringBlankRe = /("|')((?:\\.|(?!\1).)*)\1/g;
   const blanked = line.replace(stringBlankRe, (s) => s.replace(/[^\n]/g, " "));
   for (let i = 0; i < blanked.length; i++) {

