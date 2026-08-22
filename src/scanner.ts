@@ -113,8 +113,11 @@ export interface ScanResult {
  * WITHOUT forking the bundled `rules/injection-signatures.yaml` — disabling a
  * noisy rule by id or overriding a rule's severity. An absent or empty config
  * means "use the bundled defaults" (no behavior change), so existing scans are
- * unaffected. A malformed config is ignored (the safe direction: the bundled
- * defaults fire, never a silent disable).
+ * unaffected. An auto-discovered malformed config is ignored (the safe
+ * direction: the bundled defaults fire, never a silent disable); an explicit
+ * `--config <path>` whose YAML is malformed surfaces an error so a
+ * `severity_overrides` meant to escalate a rule is not silently dropped
+ * (v0.15.0 fix-malformed-explicit-config-silent-defaults).
  */
 export interface ProjectConfig {
   /** Rule ids to drop entirely (no findings from these rules). */
@@ -154,19 +157,33 @@ async function loadProjectConfig(
       }
       continue;
     }
-    return parseProjectConfig(raw);
+    return parseProjectConfig(raw, configPath !== undefined);
   }
   return null;
 }
 
-function parseProjectConfig(raw: string): ProjectConfig {
+function parseProjectConfig(raw: string, isExplicit: boolean): ProjectConfig {
   const disableRules = new Set<string>();
   const severityOverrides = new Map<string, Severity>();
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);
-  } catch {
-    // Malformed YAML: ignore the config (bundled defaults fire — safe).
+  } catch (e) {
+    // A malformed EXPLICIT `--config <path>` must surface an error (cli.ts
+    // exits 2) instead of silently applying bundled defaults — a
+    // `severity_overrides` meant to ESCALATE a MED rule to HIGH would never
+    // apply, the rule stayed MED, and CI exited 0 on a genuine injection (a
+    // silent false-clean on the exit-gating severity — same defect class as
+    // the v0.14.0 fix-missing-explicit-config-silent-defaults, but for the
+    // malformed-YAML path; the missing/unreadable-FILE path already throws in
+    // loadProjectConfig). Auto-discovery stays silent: a malformed
+    // auto-discovered `.agentguard.yaml` legitimately means "use the bundled
+    // defaults" (the safe direction — defaults fire, never a silent disable),
+    // matching the v0.12.0 m5 contract. (v0.15.0
+    // fix-malformed-explicit-config-silent-defaults)
+    if (isExplicit) {
+      throw new Error(`malformed project config YAML: ${(e as Error).message}`);
+    }
     return { disableRules, severityOverrides };
   }
   if (!parsed || typeof parsed !== "object") {

@@ -4,6 +4,66 @@ All notable changes to AgentGuard are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-08-23
+
+Fix-bump release. Two repo-verified defects on the core scan/extract surface,
+both residual gaps from a v0.15.0 bug-hunter audit of the shipped v0.14.0 TS
+source — one HIGH-severity silent-default on a malformed explicit `--config`
+and one medium-severity YAML block-scalar `#`-mis-detection that duplicated
+findings. Both are on the `src/scanner.ts` config / `src/extract.ts`
+`#`-comment-pass surface, grounded in shipped source `file:line`. No new
+detector rules, source languages, file types, or `source_kind`s. Distinct from
+the Go sibling `agentguard`.
+
+### Fixed
+- **A malformed (unparseable YAML) explicit `--config <path>` now surfaces an
+  error instead of silently applying bundled defaults
+  (`fix-malformed-explicit-config-silent-defaults`).** `parseProjectConfig`
+  (`src/scanner.ts`) wrapped `parsed = parseYaml(raw)` in
+  `try { … } catch { return { disableRules, severityOverrides }; }`, so an
+  explicit `--config <path>` whose file EXISTS and reads OK but is malformed
+  YAML silently returned an EMPTY config and `applyProjectConfig` applied the
+  bundled defaults with no error or warning. The v0.14.0
+  fix-missing-explicit-config-silent-defaults closed the
+  missing/unreadable-FILE case (`loadProjectConfig` now THROWS on `readFile`
+  failure for explicit configs) but the malformed-YAML case still swallowed in
+  `parseProjectConfig`. The result was exactly the silent false-clean the
+  sibling fix exists to prevent: a `severity_overrides` meant to ESCALATE a
+  MED rule to HIGH never applied, the rule stayed MED, and CI exited 0 on a
+  genuine agent-directed injection (exit-gating severity missed). The parse
+  failure now surfaces `malformed project config YAML: <why>` for an explicit
+  `--config` (cli.ts exits 2), mirroring the v0.14.0 missing-file fix.
+  Auto-discovery stays silent: a malformed auto-discovered
+  `.agentguard.yaml` legitimately means "use the bundled defaults" (the safe
+  direction — defaults fire, never a silent disable), preserving the v0.12.0
+  m5 contract. Guarded by a regression test (`scan()` with a malformed
+  explicit config throws; the existing v0.12.0 auto-discovery malformed test
+  pins the silent contrast).
+- **A `#` inside a YAML `|`/`>` block scalar body is no longer mis-detected
+  as a comment start (`fix-yaml-block-scalar-hash-duplicate`).** The YAML
+  `#`-comment pass' blanker (`blankYamlQuoted`, `src/extract.ts`) tracked
+  open-quote state across lines so a `#` inside a multi-line QUOTED scalar
+  was blanked before the `#`-comment scan, but it had NO awareness of block
+  scalars (`|`, `|-`, `|2`, `>`, `>-` — introduced by a block indicator after
+  `:`, not a quote char). A `#` on a continuation line of a literal/folded
+  block scalar is literal scalar CONTENT (the yaml parser emits it as part of
+  the scalar value, which `extractStructured` already scans as one
+  `mcp_tool_desc`/`yaml` unit), but the blanker left it raw, so
+  `yamlCommentStart` treated it as a comment start and emitted a spurious
+  `yaml` unit from `#` to EOL — duplicating every finding the block-scalar
+  value already produced (e.g. TWO destructive.delete + TWO injection.override
+  HIGH for one `description: |` payload, inflating `summary.HIGH` and the
+  `--json` count on the CI path). Same defect class as the v0.14.0
+  fix-yaml-multiline-quoted-hash-duplicate (which closed the QUOTED-scalar
+  case); block scalars are the residual gap closed here. A new
+  `blankYamlBlockScalars` pass (run after the quoted blanker so a `|`/`>`
+  inside a quoted scalar is already invisible) blanks block-scalar bodies so
+  `yamlCommentStart` never sees a `#` there; a dedented line ends the block so
+  a real `#` comment after the block is still scanned. Guarded by regression
+  tests (a `description: |` body with a `#`-bearing payload yields one finding
+  per real hit with no spurious `yaml` unit; a real `#` comment after a block
+  scalar still fires).
+
 ## [0.14.0] — 2026-08-19
 
 Fix-bump release. Three repo-verified false-clean defects from a v0.14.0

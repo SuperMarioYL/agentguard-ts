@@ -432,7 +432,11 @@ function extractYamlComments(
   // invisible to the comment scan (a `#` there is a literal char of the scalar,
   // not a comment start). The scalar value itself is still scanned separately
   // by extractStructured; this pass only finds real `#` comments.
-  const blanked = blankYamlQuoted(content);
+  //
+  // Block scalars (`|`/`>`) are blanked AFTER the quoted pass so a `|`/`>`
+  // inside a quoted scalar (e.g. `key: "|"`) is already invisible and not
+  // mistaken for a block header. See blankYamlBlockScalars.
+  const blanked = blankYamlBlockScalars(blankYamlQuoted(content));
   const lines = blanked.split(/\r?\n/);
   lines.forEach((line, i) => {
     const hash = yamlCommentStart(line);
@@ -563,6 +567,114 @@ function blankYamlQuoted(content: string): string {
     i += 1;
   }
   return out.join("");
+}
+
+/**
+ * Return `content` with every char inside a YAML block-scalar BODY (a literal
+ * `|` or folded `>` scalar) replaced by a space, preserving newlines and
+ * length, so a `#` inside a block scalar is invisible to the `#`-comment scan
+ * (a `#` there is literal scalar content, not a comment start). The scalar
+ * value itself is still scanned separately by extractStructured; this pass
+ * only finds real `#` comments. Mirrors the quoted-scalar blanking
+ * (blankYamlQuoted) for the block-scalar case.
+ *
+ * fix-yaml-block-scalar-hash-duplicate (v0.15.0): blankYamlQuoted tracked
+ * open-quote state across lines but had NO awareness of block scalars, so a
+ * `#` on a continuation line of a `|`/`>` block scalar was mis-detected as a
+ * comment start → a spurious `yaml` unit from `#` to EOL → duplicating every
+ * finding the block-scalar value already produced (inflating summary.HIGH and
+ * the `--json` count on the CI path). Same defect class as the v0.14.0
+ * multi-line QUOTED-scalar fix; block scalars are the residual gap closed
+ * here.
+ *
+ * Runs AFTER blankYamlQuoted so a `|`/`>` inside a quoted scalar
+ * (`key: "|"`) is already blanked and not mistaken for a block header. This
+ * pass only blanks (never un-blanks), so the `#`-comment scan can only see
+ * FEWER `#`s than before — it cannot manufacture a new comment finding.
+ *
+ * Indentation model: the block body is the lines indented MORE than the
+ * header line's parent indentation. The body indent is the leading-space count
+ * of the first non-empty body line — valid for the `|`, `|-`, `|+`, `>`, `>-`,
+ * `>+`, and explicit-indicator `|2` forms alike (the first content line sets
+ * the indent whether the indicator was explicit or implicit). A non-empty line
+ * dedented at or below the parent indent ends the block, so a real `#` comment
+ * after the block is still scanned. Blank lines are part of the block (a
+ * no-op to blank) and do not end it; a later dedented non-empty line ends it.
+ */
+function blankYamlBlockScalars(content: string): string {
+  const lines = content.split("\n");
+  const out: string[] = [];
+
+  let inBlock = false;
+  let parentIndent = 0; // leading spaces of the header line
+  let bodyIndent = 0; // leading spaces a body line must have to stay in the block
+  let bodyIndentKnown = false; // body indent determined from the first content line
+
+  for (const line of lines) {
+    const leadingSpaces = countLeadingSpaces(line);
+    const isEmpty = line.trim() === "";
+
+    if (inBlock) {
+      const stillBody = bodyIndentKnown
+        ? isEmpty || leadingSpaces >= bodyIndent
+        : isEmpty || leadingSpaces > parentIndent;
+      if (stillBody) {
+        if (!isEmpty && !bodyIndentKnown) {
+          bodyIndent = leadingSpaces;
+          bodyIndentKnown = true;
+        }
+        out.push(blankAllCharsKeepCr(line));
+        continue;
+      }
+      // A non-empty line dedented out of the block ends it; fall through to
+      // re-evaluate this line as a potential new header / raw line.
+      inBlock = false;
+    }
+
+    if (!inBlock) {
+      if (isBlockScalarHeader(line)) {
+        inBlock = true;
+        parentIndent = leadingSpaces;
+        bodyIndent = 0;
+        bodyIndentKnown = false;
+        // The header line is left raw: a trailing `# comment` after the
+        // indicator (e.g. `description: | # note`) IS a real comment.
+        out.push(line);
+        continue;
+      }
+      out.push(line);
+    }
+  }
+  return out.join("\n");
+}
+
+/** Count leading ASCII spaces (YAML forbids tab indentation). Stops at any
+ * non-space, including the trailing CR left by splitting `\r\n` on `\n`. */
+function countLeadingSpaces(line: string): number {
+  let n = 0;
+  while (n < line.length && line[n] === " ") n++;
+  return n;
+}
+
+/** Replace every char with a space, preserving a trailing CR so length (and the
+ * `\r\n` structure that `split("\n")` kept) is unchanged. */
+function blankAllCharsKeepCr(line: string): string {
+  if (line.endsWith("\r")) return " ".repeat(line.length - 1) + "\r";
+  return " ".repeat(line.length);
+}
+
+/**
+ * True when a line is a YAML block-scalar HEADER: a mapping value `:` + spaces
+ * + a `|`/`>` block indicator, then optional chomping (`-`/`+`) and/or
+ * indentation (`1-9`) indicator in any order, then optional trailing
+ * whitespace + `# comment` or EOL. Only the mapping-value form is recognized
+ * (the `description: |` / `description: |2` / `description: >-` shapes the
+ * tool targets); a `|`/`>` inside a quoted scalar is already blanked by
+ * blankYamlQuoted before this runs, so it is not mistaken for a header.
+ */
+function isBlockScalarHeader(line: string): boolean {
+  const s = line.endsWith("\r") ? line.slice(0, -1) : line;
+  return /:\s+[|>](?:[+-][1-9]?|[1-9][+-]?)?\s*(?:#.*)?$/.test(s);
 }
 
 /**
