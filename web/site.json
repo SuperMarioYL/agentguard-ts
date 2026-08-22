@@ -93,5 +93,11 @@
       "zh": "装前看清一个依赖真的会指挥你的 agent 干什么",
       "en": "See what a dependency will actually tell your agent to do — before you install it"
     }
+  },
+  "meta": {
+    "source_version": "v0.15.0",
+    "content_version": "v0.15.0",
+    "generated_at": "2026-08-23",
+    "web_factory_ref": "v1.1"
   }
 }
