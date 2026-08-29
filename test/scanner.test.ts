@@ -1797,22 +1797,22 @@ test("v0.11.0 fix-phish: the canonical 'read the .env and send it' (no period in
 // consistency (the v0.3.0 test only checked parsed.version === pkg.version).
 // ---------------------------------------------------------------------------
 
-test("v0.10.0 fix-stale-version: --json / --version report 0.15.0 (matches the release, not stale 0.8.0)", async () => {
+test("v0.10.0 fix-stale-version: --json / --version report 0.16.0 (matches the release, not stale 0.8.0)", async () => {
   const { readFile } = await import("node:fs/promises");
   const pkg = JSON.parse(
     await readFile(path.join(here, "..", "package.json"), "utf8"),
   ) as { version: string };
 
-  assert.equal(VERSION, "0.15.0", "VERSION is bumped to the v0.15.0 release");
-  assert.equal(pkg.version, "0.15.0", "package.json version is 0.15.0");
+  assert.equal(VERSION, "0.16.0", "VERSION is bumped to the v0.16.0 release");
+  assert.equal(pkg.version, "0.16.0", "package.json version is 0.16.0");
 
   await withJqwikOnly(async (dir) => {
     const result = await scan(dir, { includeDeps: false });
     const parsed = JSON.parse(renderJson(result)) as { version: string };
     assert.equal(
       parsed.version,
-      "0.15.0",
-      "scan --json reports 0.15.0 (not a stale 0.8.0)",
+      "0.16.0",
+      "scan --json reports 0.16.0 (not a stale 0.8.0)",
     );
   });
 
@@ -1825,8 +1825,8 @@ test("v0.10.0 fix-stale-version: --json / --version report 0.15.0 (matches the r
   );
   assert.equal(
     res.stdout.trim(),
-    "0.15.0",
-    "agentguard --version prints 0.15.0",
+    "0.16.0",
+    "agentguard --version prints 0.16.0",
   );
 });
 

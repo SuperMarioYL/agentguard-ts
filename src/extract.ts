@@ -664,17 +664,30 @@ function blankAllCharsKeepCr(line: string): string {
 }
 
 /**
- * True when a line is a YAML block-scalar HEADER: a mapping value `:` + spaces
- * + a `|`/`>` block indicator, then optional chomping (`-`/`+`) and/or
- * indentation (`1-9`) indicator in any order, then optional trailing
- * whitespace + `# comment` or EOL. Only the mapping-value form is recognized
- * (the `description: |` / `description: |2` / `description: >-` shapes the
- * tool targets); a `|`/`>` inside a quoted scalar is already blanked by
+ * True when a line is a YAML block-scalar HEADER: a `|`/`>` indicator in a VALUE
+ * position — either a mapping value (`description: |`, `key: >-`) or a sequence
+ * element (`tools:\n  - |`, `  - >`). Only these two value forms introduce a
+ * block scalar; a `|`/`>` inside a quoted scalar is already blanked by
  * blankYamlQuoted before this runs, so it is not mistaken for a header.
+ *
+ * v0.16.0 fix-yaml-sequence-block-scalar-hash-duplicate: the v0.15.0 header
+ * detector only recognized the mapping-value form (`:\s+[|>]`), so a `#` on a
+ * continuation line of a SEQUENCE block scalar (`- |`, `- >`) was left raw and
+ * yamlCommentStart treated it as a comment start → a spurious `yaml` unit that
+ * duplicated every finding the block-scalar value already produced (inflating
+ * summary.HIGH and the `--json` count on the CI path) — the residual gap of the
+ * v0.15.0 mapping-form fix. The sequence arm `^\s*-\s+` is anchored to the line
+ * start (a `-` after only spaces), so a `|`/`>` mid-prose or after a non-dash
+ * token never matches; a `|`/`>` right after a `- ` is a block header. The
+ * downstream blankYamlBlockScalars indentation model (body = lines indented
+ * more than the header's leading spaces; a dedented line ends the block) already
+ * holds for the sequence form: a sibling sequence element sits at the SAME
+ * indent as the header, so it dedents out of the block and ends it, while the
+ * block body is the more-indented continuation lines.
  */
 function isBlockScalarHeader(line: string): boolean {
   const s = line.endsWith("\r") ? line.slice(0, -1) : line;
-  return /:\s+[|>](?:[+-][1-9]?|[1-9][+-]?)?\s*(?:#.*)?$/.test(s);
+  return /(?:^\s*-\s+|:\s+)[|>](?:[+-][1-9]?|[1-9][+-]?)?\s*(?:#.*)?$/.test(s);
 }
 
 /**
