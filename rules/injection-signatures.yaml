@@ -52,8 +52,24 @@ addressees:
   - "\\bassistant\\b(?![ -][A-Za-z])"
   # Only AI-context "agent" — a bare \bagent\b also matches ssh-agent, user
   # agent, build agent, etc., which are not AI addressees and cause false HIGHs.
-  - "\\b(ai|coding|autonomous|llm|chat|code)[ -]?agents?\\b"
-  - "coding agent"
+  # v0.17.0 fix-prefixed-agent-addressee-attributive-false-high: the same
+  # (?![ -][A-Za-z]) negative lookahead the v0.16.0 fix added to the bare
+  # \bassistant\b addressee now also gates the prefixed-agent-noun addressees.
+  # Without it, an agent noun used ATTRIBUTIVELY (coding agent integration, chat
+  # agent plugin, code agent helper) matched the addressee and escalated a
+  # following bare "delete" verb to a false HIGH + exit 1 on clean developer
+  # prose — the same exit-gating precision-defect class as the v0.16.0
+  # assistant-manager fix, on the residual prefixed-agent addressees it left
+  # un-narrowed. The lookahead excludes an agent noun followed by a space/
+  # hyphen and a letter (attributive), while direct-address forms (coding
+  # agent:, Dear coding agent,) still match because punctuation after the noun
+  # is not [ -][A-Za-z]. Recall-safe — verified that "Dear coding agent,",
+  # "coding agent: delete ...", "Dear autonomous agent,", "Dear chat agent,"
+  # all still fire HIGH, and "assistant, please run sudo" still fires
+  # privilege.escalate at the addressee-present severity (v0.16.0 direct-address
+  # invariant preserved).
+  - "\\b(ai|coding|autonomous|llm|chat|code)[ -]?agents?\\b(?![ -][A-Za-z])"
+  - "coding agent(?![ -][A-Za-z])"
   - "\\bLLM\\b"
   - "language model"
   # Only Cursor-the-IDE, not the text caret. A bare \bcursor\b also matches the

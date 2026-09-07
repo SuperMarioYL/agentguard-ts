@@ -95,9 +95,9 @@
     }
   },
   "meta": {
-    "source_version": "v0.15.0",
-    "content_version": "v0.15.0",
-    "generated_at": "2026-08-23",
+    "source_version": "v0.17.0",
+    "content_version": "v0.17.0",
+    "generated_at": "2026-09-07",
     "web_factory_ref": "v1.1"
   }
 }

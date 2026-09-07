@@ -1797,22 +1797,22 @@ test("v0.11.0 fix-phish: the canonical 'read the .env and send it' (no period in
 // consistency (the v0.3.0 test only checked parsed.version === pkg.version).
 // ---------------------------------------------------------------------------
 
-test("v0.10.0 fix-stale-version: --json / --version report 0.16.0 (matches the release, not stale 0.8.0)", async () => {
+test("v0.10.0 fix-stale-version: --json / --version report 0.17.0 (matches the release, not stale 0.8.0)", async () => {
   const { readFile } = await import("node:fs/promises");
   const pkg = JSON.parse(
     await readFile(path.join(here, "..", "package.json"), "utf8"),
   ) as { version: string };
 
-  assert.equal(VERSION, "0.16.0", "VERSION is bumped to the v0.16.0 release");
-  assert.equal(pkg.version, "0.16.0", "package.json version is 0.16.0");
+  assert.equal(VERSION, "0.17.0", "VERSION is bumped to the v0.17.0 release");
+  assert.equal(pkg.version, "0.17.0", "package.json version is 0.17.0");
 
   await withJqwikOnly(async (dir) => {
     const result = await scan(dir, { includeDeps: false });
     const parsed = JSON.parse(renderJson(result)) as { version: string };
     assert.equal(
       parsed.version,
-      "0.16.0",
-      "scan --json reports 0.16.0 (not a stale 0.8.0)",
+      "0.17.0",
+      "scan --json reports 0.17.0 (not a stale 0.8.0)",
     );
   });
 
@@ -1825,9 +1825,67 @@ test("v0.10.0 fix-stale-version: --json / --version report 0.16.0 (matches the r
   );
   assert.equal(
     res.stdout.trim(),
-    "0.16.0",
-    "agentguard --version prints 0.16.0",
+    "0.17.0",
+    "agentguard --version prints 0.17.0",
   );
+});
+
+// ---------------------------------------------------------------------------
+// v0.17.0 fix-stale-site-changelog-version: the v0.16.0 ship commit (45204ce)
+// bumped package.json to 0.16.0 and the v0.10.0 lockstep test above asserts
+// VERSION / --json.version / agentguard --version all read the release, but
+// TWO provenance surfaces were never bumped and still reported v0.15.0 for a
+// v0.16.0 release: web/site.json source_version/content_version (the live
+// agentguard-ts.lei6393.com footer/meta advertised v0.15.0) and CHANGELOG.md
+// (head was still "## [0.15.0]" — no "## [0.16.0]" entry). The v0.10.0 test
+// only covered package.json/cli/json, so the v0.16.0 drift shipped uncaught.
+// This single-source-of-truth test pins the two surfaces the v0.10.0 test
+// missed: stripLeadingV(site.json.content_version) === pkg.version === VERSION
+// === CHANGELOG head version. It FAILS on the shipped v0.16.0 tag (site.json
+// was v0.15.0, CHANGELOG head was [0.15.0]), proving the drift was real.
+// ---------------------------------------------------------------------------
+
+test("v0.17.0 fix-stale-site-changelog: site.json + CHANGELOG provenance match the release (was a v0.16.0 drift)", async () => {
+  const { readFile } = await import("node:fs/promises");
+
+  const pkg = JSON.parse(
+    await readFile(path.join(here, "..", "package.json"), "utf8"),
+  ) as { version: string };
+
+  // web/site.json content_version + source_version land at the release.
+  const site = JSON.parse(
+    await readFile(path.join(here, "..", "web", "site.json"), "utf8"),
+  ) as { meta: { content_version: string; source_version: string } };
+  const stripV = (s: string): string => s.replace(/^v/i, "");
+  assert.equal(
+    stripV(site.meta.content_version),
+    pkg.version,
+    `web/site.json content_version (${site.meta.content_version}) matches package.json (${pkg.version}) — was stale v0.15.0 on the v0.16.0 tag`,
+  );
+  assert.equal(
+    stripV(site.meta.source_version),
+    pkg.version,
+    `web/site.json source_version (${site.meta.source_version}) matches package.json (${pkg.version}) — was stale v0.15.0 on the v0.16.0 tag`,
+  );
+
+  // CHANGELOG head version matches the release. The v0.16.0 ship never added
+  // a "## [0.16.0]" entry, so the head was "## [0.15.0]" — a full release
+  // behind. v0.17.0 backfills the [0.16.0] entry and adds the [0.17.0] head.
+  const changelog = await readFile(
+    path.join(here, "..", "CHANGELOG.md"),
+    "utf8",
+  );
+  const headMatch = changelog.match(/^## \[([^\]]+)\]/m);
+  assert.ok(headMatch, "CHANGELOG.md has a ## [version] head entry");
+  assert.equal(
+    headMatch[1],
+    pkg.version,
+    `CHANGELOG head version ([${headMatch[1]}]) matches package.json (${pkg.version}) — was stale [0.15.0] on the v0.16.0 tag`,
+  );
+
+  // VERSION (the runtime single source of truth) already asserted === pkg.version
+  // by the v0.10.0 test; assert it here too so this test is self-contained.
+  assert.equal(VERSION, pkg.version, "VERSION constant matches package.json");
 });
 
 // ---------------------------------------------------------------------------
