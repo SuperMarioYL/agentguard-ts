@@ -1,103 +1,215 @@
 {
-  "schema": 1,
-  "name": "AgentGuard",
+  "schema": 3,
+  "name": "agentguard-ts",
   "github": "https://github.com/SuperMarioYL/agentguard-ts",
   "host": "agentguard-ts.lei6393.com",
-  "lang": { "primary": "zh", "toggle": true },
-  "accent": ["#e0524d", "#f18a5c", "#c33b4e"],
+  "palette": "auto",
+  "lang": {
+    "primary": "en",
+    "toggle": true
+  },
+  "meta": {
+    "visual_style": "neon-particle",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
-    "eyebrow": { "zh": "本地 · 离线 · 零配置", "en": "Local · Offline · Zero-config" },
     "headline": {
-      "zh": "依赖里藏着指挥 agent 删文件、偷密钥的指令\n在它替你执行之前先揪出来",
-      "en": "Hidden in your deps: instructions that tell your agent\nto delete files or steal keys — catch them before it runs them"
+      "en": "Find suspicious instructions in the files agents read.",
+      "zh": "在 Agent 阅读的文件中找出可疑指令。"
     },
     "sub": {
-      "zh": "一条命令扫遍项目和所有依赖，把伪装成文档、注释、工具说明、暗中指挥你的编码 agent 去删数据、外传文件、读密钥的句子挑出来。给每一个让 Cursor / Claude Code / Codex 跑在自己代码上的人——干净的依赖零误报。",
-      "en": "One command scans your project and every dependency, surfacing the sentences disguised as docs, comments or tool descriptions that quietly tell your coding agent to delete data, exfiltrate files or read your keys. For anyone letting Cursor / Claude Code / Codex run on their code — clean deps stay quiet."
+      "en": "AgentGuard scans local project and dependency text, extracts prose units and applies explicit instruction-pattern rules.",
+      "zh": "AgentGuard 扫描本地项目与依赖文本，提取 prose 单元，并应用明确指令模式规则。"
     },
-    "command": "npx agentguard scan .",
-    "cta": { "zh": "开始使用", "en": "Get started" },
-    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+    "href": "#quickstart"
   },
   "advantages": [
     {
-      "title": { "zh": "你的 agent 读 README 就会照做——文档就是攻击面", "en": "Your agent reads READMEs and obeys — so docs are the attack surface" },
-      "body": {
-        "zh": "编码 agent 摄取 README、注释、依赖文档，然后带着文件、shell、网络权限去执行。AgentGuard 把这些当成可执行代码来审：遍历你的项目和每一个依赖，把散落在文档、注释、配置、工具说明里的句子逐句过一遍。",
-        "en": "A coding agent ingests READMEs, comments and dependency docs, then executes them with file, shell and network permissions. AgentGuard treats that prose as executable code: it walks your project and every dependency, inspecting every sentence buried in docs, comments, config and tool descriptions."
+      "title": {
+        "en": "Locate exact prose",
+        "zh": "定位具体文本"
       },
-      "chips": [
-        "› 扫项目 + 所有依赖",
-        "› 文档 / 注释 / 配置 / 工具说明都过审"
-      ]
+      "body": {
+        "en": "Findings preserve source file and line.",
+        "zh": "结果保留源文件和行号。"
+      }
     },
     {
-      "title": { "zh": "不乱喊狼来了——干净的依赖零误报", "en": "No crying wolf — clean deps stay quiet" },
-      "body": {
-        "zh": "「delete」「.env」这些词在普通开发文档里到处都是，普通关键词扫描会把它们全报成危险。AgentGuard 只在一段话明确在对你的 AI / agent 说话时才升级——对着人说的普通文档直接跳过；就算把收件人和指令拆到不同行里藏着，也照样抓得到。结果：一份干净的 README 产出零噪音。",
-        "en": "'delete' and '.env' show up in ordinary dev docs all the time, and a naive keyword scan flags them all. AgentGuard only escalates when a sentence is clearly addressing your AI / agent — ordinary prose aimed at humans is skipped, and even a payload that splits the addressee and the instruction across separate lines is still caught. The result: a clean README produces zero noise."
+      "title": {
+        "en": "Inspect why it matched",
+        "zh": "检查命中原因"
       },
-      "chips": [
-        "› 区分「对人」还是「对你的 agent」",
-        "› 跨行藏起来的指令也抓得到"
-      ]
+      "body": {
+        "en": "Rule explanations expose the trigger phrase.",
+        "zh": "规则解释展示触发模式。"
+      }
     },
     {
-      "title": { "zh": "能认出七种瞄准你 agent 的攻击", "en": "Recognizes seven attacks aimed at your agent" },
-      "body": {
-        "zh": "每一条命中都告诉你：哪个文件、哪一行、它在指挥你的 agent 干什么——删数据、把项目外传、偷密钥、覆盖指令、提权、埋后门、藏起来。覆盖依赖文档、注释、配置和工具描述里的真实 payload，你也可以自己加规则。",
-        "en": "Every hit tells you which file, which line, and what it's telling your agent to do — delete data, exfiltrate the project, harvest keys, override instructions, escalate privileges, plant a backdoor, or hide. Covers real payloads in dependency docs, comments, config and tool descriptions — and you can add your own rules."
+      "title": {
+        "en": "Control CI behavior",
+        "zh": "控制 CI 行为"
       },
-      "chips": [
-        "› 删数据 / 外传 / 偷密钥 / 覆盖指令",
-        "› 可加自己的规则"
-      ]
+      "body": {
+        "en": "Severity and configured rules determine exit status.",
+        "zh": "级别和配置规则共同决定退出状态。"
+      }
+    }
+  ],
+  "demo": {
+    "title": {
+      "en": "Run it on a complete example",
+      "zh": "运行完整示例"
+    },
+    "note": {
+      "en": "Create a temporary complete README with one suspicious sentence and ordinary documentation, then run the production scan pipeline.",
+      "zh": "创建含一条可疑句子与普通文档的完整临时 README，运行生产扫描链路。"
+    },
+    "source": "https://github.com/SuperMarioYL/agentguard-ts/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": "Recorded run",
+        "body": "Production file walk, prose extraction and rule scan on a temporary synthetic README. The suspicious sentence is inert text and is never executed.",
+        "command": "node examples/presentation-demo.mjs",
+        "output": "{\n  \"files\": 1,\n  \"units\": 3,\n  \"findings\": [\n    {\n      \"file\": \"README.md\",\n      \"line\": 2,\n      \"rule\": \"destructive.delete\",\n      \"severity\": \"HIGH\"\n    }\n  ],\n  \"scan_exit\": 1\n}",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "en": "Try it locally",
+      "zh": "本地上手"
+    },
+    "body": {
+      "en": "Create a temporary complete README with one suspicious sentence and ordinary documentation, then run the production scan pipeline.",
+      "zh": "创建含一条可疑句子与普通文档的完整临时 README，运行生产扫描链路。"
+    },
+    "steps": [
+      {
+        "title": {
+          "en": "Install from source",
+          "zh": "从源码安装"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/agentguard-ts.git\ncd agentguard-ts\nnpm ci\nnpm run build"
+      },
+      {
+        "title": {
+          "en": "Run the included example",
+          "zh": "运行随仓示例"
+        },
+        "code": "node examples/presentation-demo.mjs"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "en": "This is heuristic text detection, not proof that a package is malicious or that a clean package is safe.",
+      "zh": "这是启发式文本检测，不证明包恶意，也不证明无发现包安全。"
     },
     {
-      "title": { "zh": "合进 CI 一行挡住坏依赖", "en": "One line in CI blocks bad deps" },
-      "body": {
-        "zh": "发现危险就让构建失败，scan 直接当 CI 或 pre-commit 门禁，无需额外接线。全程本地、离线跑，不要 API key、不联网——结果可复现，机器可读的输出能直接喂给下游工具或存档。",
-        "en": "Any danger fails the build, so scan works as a CI or pre-commit gate with no extra wiring. It runs fully local and offline — no API key, no network — with reproducible results and machine-readable output you can pipe to downstream tools or archive."
-      },
-      "chips": [
-        "› 本地 · 离线 · 无需 API key",
-        "› CI / pre-commit 直接当门禁"
-      ]
+      "en": "Changing rule severity can change the CI result. Inspect project overrides when interpreting a clean status.",
+      "zh": "修改规则级别会改变 CI 结果；解释无发现状态时应检查项目覆盖设置。"
+    },
+    {
+      "en": "The demo scans one synthetic README and never executes its suspicious sentence.",
+      "zh": "示例扫描一份合成 README，不执行其中可疑句子。"
     }
   ],
   "scene": {
-    "kind": "hub-nodes",
-    "nodes": [
-      "删你的文件",
-      "把项目外传",
-      "偷读密钥",
-      "覆盖指令",
-      "提权越界",
-      "埋后门",
-      "藏起来不让你看见"
+    "kind": "neon-graph",
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
+  },
+  "story": {
+    "intro": {
+      "title": {
+        "en": "A concrete task",
+        "zh": "从实际任务出发"
+      },
+      "body": {
+        "en": "Comments, documentation and fixtures can contain text addressed to an assistant. A scan that keeps source type and location gives a reviewer a concrete sentence to inspect.",
+        "zh": "注释、文档和 fixture 可能含有面向助手的文本。保留来源类型与位置的扫描可以让检查者定位具体句子。"
+      }
+    },
+    "sections": [
+      {
+        "title": {
+          "en": "Follow the operation",
+          "zh": "处理过程"
+        },
+        "body": {
+          "en": "walk enumerates files, extract reads comments, Markdown, YAML and supported tool-description text, and rules combines suspicious verbs with addressee patterns. scanner applies project overrides and report groups findings by severity. HIGH findings set a nonzero scan status.",
+          "zh": "walk 枚举文件，extract 提取注释、Markdown、YAML 与支持的工具描述，rules 组合可疑动词和收件人模式。scanner 应用项目覆盖设置，report 按级别汇总；HIGH 发现设置非零扫描状态。"
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "en": "Follow the operation",
+            "zh": "处理过程"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "How AgentGuard TypeScript works",
+          "zh": "AgentGuard TypeScript 的工作方式"
+        },
+        "body": {
+          "en": "walk enumerates files, extract reads comments, Markdown, YAML and supported tool-description text, and rules combines suspicious verbs with addressee patterns. scanner applies project overrides and report groups findings by severity. HIGH findings set a nonzero scan status.",
+          "zh": "walk 枚举文件，extract 提取注释、Markdown、YAML 与支持的工具描述，rules 组合可疑动词和收件人模式。scanner 应用项目覆盖设置，report 按级别汇总；HIGH 发现设置非零扫描状态。"
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "en": "How AgentGuard TypeScript works",
+            "zh": "AgentGuard TypeScript 的工作方式"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Connect the pieces",
+          "zh": "输入与输出"
+        },
+        "body": {
+          "en": "The following routes are implemented in the source. Choose the input that matches your task and keep the resulting artifact with your project.",
+          "zh": "以下路径已有源码实现。按任务选择输入，并把生成的结果与项目一起保存。"
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "en": "Connect the pieces",
+            "zh": "输入与输出"
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "en": "Configuration",
+          "zh": "配置"
+        },
+        "body": {
+          "en": "The CLI defaults to scanning project files and dependencies; --no-deps excludes dependencies. .agentguard.yaml can disable rules or override severities. An explicit --config path must be readable and valid; --rules selects another signature file.",
+          "zh": "CLI 默认扫描项目与依赖，--no-deps 排除依赖。.agentguard.yaml 可禁用规则或覆盖级别。显式 --config 路径必须可读且有效，--rules 可指定其他签名文件。"
+        }
+      },
+      {
+        "title": {
+          "en": "Further use",
+          "zh": "进一步使用"
+        },
+        "body": {
+          "en": "The CLI exposes the following operations. Commands after the example use your own paths or identifiers.",
+          "zh": "CLI 提供以下操作。示例之外的命令需要替换成你的文件路径或标识。"
+        },
+        "code": "node dist/cli.js scan . --no-deps\nnode dist/cli.js scan . --json\nnode dist/cli.js scan . --ci"
+      }
     ]
-  },
-  "cta": {
-    "headline": {
-      "zh": "在 agent 替你执行依赖之前，先扫一遍",
-      "en": "Scan your deps before your agent runs them"
-    },
-    "sub": {
-      "zh": "开源、Apache-2.0、永久免费自托管。零安装、零配置、无需 API key。",
-      "en": "Open source, Apache-2.0, free to self-host forever. Zero install, zero config, no API key."
-    },
-    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
-  },
-  "footer": {
-    "tag": {
-      "zh": "装前看清一个依赖真的会指挥你的 agent 干什么",
-      "en": "See what a dependency will actually tell your agent to do — before you install it"
-    }
-  },
-  "meta": {
-    "source_version": "v0.17.0",
-    "content_version": "v0.17.0",
-    "generated_at": "2026-09-07",
-    "web_factory_ref": "v1.1"
   }
 }

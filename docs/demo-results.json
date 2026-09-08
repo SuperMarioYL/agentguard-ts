@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "source_revision": "ccb8e87623be05ddf623ab2cd1554497cf486da6",
+  "scope": "Production file walk, prose extraction and rule scan on a temporary synthetic README. The suspicious sentence is inert text and is never executed.",
+  "steps": [
+    {
+      "label": "Recorded run",
+      "body": "Production file walk, prose extraction and rule scan on a temporary synthetic README. The suspicious sentence is inert text and is never executed.",
+      "command": "node examples/presentation-demo.mjs",
+      "output": "{\n  \"files\": 1,\n  \"units\": 3,\n  \"findings\": [\n    {\n      \"file\": \"README.md\",\n      \"line\": 2,\n      \"rule\": \"destructive.delete\",\n      \"severity\": \"HIGH\"\n    }\n  ],\n  \"scan_exit\": 1\n}"
+    }
+  ]
+}

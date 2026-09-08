@@ -1,7 +1,7 @@
 {
   "name": "agentguard",
   "version": "0.17.0",
-  "description": "Scan your dependency tree for hidden instructions aimed at your coding agent before it runs them.",
+  "description": "Scan project and dependency prose for agent-directed instruction patterns, with source locations, rule explanations and CI exit codes.",
   "type": "module",
   "repository": {
     "type": "git",

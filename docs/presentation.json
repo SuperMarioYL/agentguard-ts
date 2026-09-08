@@ -1,0 +1,78 @@
+{
+  "name": "agentguard-ts",
+  "tagline": "Find suspicious instructions in the files agents read.",
+  "architecture": {
+    "title": "How AgentGuard TypeScript works",
+    "nodes": [
+      {
+        "title": "File walk",
+        "detail": "src/walk.ts"
+      },
+      {
+        "title": "Prose extraction",
+        "detail": "src/extract.ts"
+      },
+      {
+        "title": "Pattern rules",
+        "detail": "src/rules.ts"
+      },
+      {
+        "title": "Findings / report",
+        "detail": "src/scanner.ts; report.ts"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "process": {
+    "title": "From input to a useful result",
+    "steps": [
+      {
+        "title": "Walk file",
+        "detail": "One synthetic README"
+      },
+      {
+        "title": "Extract prose",
+        "detail": "Three text units"
+      },
+      {
+        "title": "Apply rules",
+        "detail": "HIGH finding at line 2"
+      }
+    ],
+    "result": "The scanner reports a HIGH destructive.delete finding at the synthetic README’s second line."
+  },
+  "integrations": {
+    "title": "Supported input and output routes",
+    "items": [
+      {
+        "title": "Local source / node_modules",
+        "detail": "File scan input"
+      },
+      {
+        "title": "Typed prose units",
+        "detail": "Comments, Markdown and YAML"
+      },
+      {
+        "title": "Rule YAML",
+        "detail": "Instruction signatures"
+      },
+      {
+        "title": "Project config",
+        "detail": "Rule disable and severity overrides"
+      }
+    ]
+  }
+}
